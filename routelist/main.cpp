@@ -7,9 +7,38 @@
 #pragma comment(lib, "iphlpapi.lib")
 #pragma comment(lib, "ws2_32.lib")
 
+static
+std::string findIP(const IP_ADAPTER_INFO* adaps, int index) {
+    for (auto ad = adaps; ad; ad = ad->Next) {
+        if(ad->Index == index) {
+            std::string res = "";
+            for(auto ips = &ad->IpAddressList; ips; ips = ips->Next) {
+                res += std::string(" ") + ips->IpAddress.String;
+            }
+            return res;
+        }
+
+    }
+    return "*** none ***";
+}
+
 int main(int argc, char *argv[])
 {
     QCoreApplication a(argc, argv);
+
+    ULONG ulOutBufLen = 0;
+    int rc = GetAdaptersInfo(0, &ulOutBufLen);
+    if (rc != NO_ERROR && rc != ERROR_BUFFER_OVERFLOW) {
+        printf("*** GetAdaptersInfo1 fails %d\n", rc);
+        return 1;
+    }
+
+    IP_ADAPTER_INFO* pAdapterInfo = (IP_ADAPTER_INFO*) malloc(ulOutBufLen);
+    if (GetAdaptersInfo(pAdapterInfo, &ulOutBufLen) != NO_ERROR) {
+        printf("*** GetAdaptersInfo2 fails\n");
+        return 1;
+    }
+
 
 
     // Declare and initialize variables.
@@ -25,7 +54,7 @@ int main(int argc, char *argv[])
 
     struct in_addr IpAddr;
 
-    int i;
+    //int i;
 
     pIpForwardTable =
         (MIB_IPFORWARDTABLE *) malloc(sizeof (MIB_IPFORWARDTABLE));
@@ -50,7 +79,7 @@ int main(int argc, char *argv[])
     if ((dwRetVal = GetIpForwardTable(pIpForwardTable, &dwSize, 0)) == NO_ERROR) {
         printf("\tNumber of entries: %d\n",
                (int) pIpForwardTable->dwNumEntries);
-        for (i = 0; i < (int) pIpForwardTable->dwNumEntries; i++) {
+        for (int i = 0; i < (int) pIpForwardTable->dwNumEntries; i++) {
             /* Convert IPv4 addresses to strings */
             IpAddr.S_un.S_addr =
                 (u_long) pIpForwardTable->table[i].dwForwardDest;
@@ -65,8 +94,8 @@ int main(int argc, char *argv[])
             printf("\n\tRoute[%d] Dest IP: %s\n", i, szDestIp);
             printf("\tRoute[%d] Subnet Mask: %s\n", i, szMaskIp);
             printf("\tRoute[%d] Next Hop: %s\n", i, szGatewayIp);
-            printf("\tRoute[%d] If Index: %ld\n", i,
-                   pIpForwardTable->table[i].dwForwardIfIndex);
+            printf("\tRoute[%d] If Index: %ld (IP:%s)\n", i,
+                   pIpForwardTable->table[i].dwForwardIfIndex, findIP(pAdapterInfo, pIpForwardTable->table[i].dwForwardIfIndex).c_str());
             printf("\tRoute[%d] Type: %ld - ", i,
                    pIpForwardTable->table[i].dwForwardType);
             switch (pIpForwardTable->table[i].dwForwardType) {
