@@ -15,7 +15,9 @@
 #pragma comment(lib, "Ws2_32.lib")
 
 //#define DNS_SERVER "8.8.8.8" // Google Public DNS
-#define DNS_SERVER "192.168.0.1" // Google Public DNS
+//#define DNS_SERVER "1.1.1.1"
+//#define DNS_SERVER "192.168.0.1"
+#define DNS_SERVER "109.195.80.1"
 #define DNS_PORT 53
 
 // Структура для DNS-запроса
@@ -39,42 +41,30 @@ typedef struct {
 void CreateDnsQuery(char* hostname, char* buffer, size_t* queryLength) {
     DNSHeader* dnsHeader = (DNSHeader*)buffer;
     memset (dnsHeader, 0, sizeof *dnsHeader);
-    printf("CreateDnsQuery() 1\n");
 
     dnsHeader->id = (unsigned short) htons(getpid() & 0xFFFF); // Уникальный идентификатор запроса
     dnsHeader->rd = 1;                                       // Рекурсивный запрос включен
-    printf("CreateDnsQuery() 1.1\n");
 
     dnsHeader->qcount = htons(1);                          // Один вопрос
     dnsHeader->opcode = 0;
-    printf("CreateDnsQuery() 1.2\n");
 
     ///// unsigned
         char* qname = buffer + sizeof(DNSHeader);
 
-    printf("CreateDnsQuery() 1.2.1 %s\n", hostname);
-
     // Форматирование имени хоста в соответствии с форматом DNS (с длиной каждого сегмента)
     const char* token = strtok(hostname, ".");
-    printf("CreateDnsQuery() 1.2.2\n");
 
     while (token != NULL) {
-        printf("tok: %s\n", token);
         *qname++ = (unsigned char)strlen(token);
         strcpy((char*)qname, token);
         qname += strlen(token);
         token = strtok(NULL, ".");
     }
-    printf("CreateDnsQuery() 1.3\n");
-
 
     *qname++ = 0;                                            // Завершение имени нулевым байтом
 
-    printf("CreateDnsQuery() 2\n");
-
     *((unsigned short*)qname) = htons(1);                   // Тип A (IPv4)
     *((unsigned short*)(qname + 2)) = htons(1);             // Класс IN (Internet)
-    printf("CreateDnsQuery() 3\n");
 
     *queryLength = qname - buffer + 4;                     // Длина запроса (заголовок + вопрос)
 }
@@ -101,7 +91,6 @@ int main(int argc, char *argv[])
     printf("host: %s\n", hostname);
 
     WSADATA wsaData;
-    printf("main() 1\n");
 
     if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
         printf("WSAStartup failed: %d\n", WSAGetLastError());
@@ -109,11 +98,6 @@ int main(int argc, char *argv[])
     }
 
     SOCKET sockfd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-
-    printf("socket %p\n", sockfd);
-
-    printf("main() 1.1\n");
-
 
     if (sockfd == INVALID_SOCKET) {
         printf("Socket creation failed: %d\n", WSAGetLastError());
@@ -132,7 +116,6 @@ int main(int argc, char *argv[])
         WSACleanup();
         return 1;
     }
-    printf("main() 1.2\n");
 
     ///// unsigned
         char buffer[512];
@@ -140,7 +123,6 @@ int main(int argc, char *argv[])
     size_t queryLength;
 
     CreateDnsQuery(hostname, buffer, &queryLength);
-    printf("main() 2\n");
 
 
     if (sendto(sockfd, buffer, queryLength, 0, (struct sockaddr*)&dest, sizeof(dest)) < 0) {
@@ -150,15 +132,11 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    printf("main() 3\n");
-
     struct sockaddr_in from;
 
     int fromlen = sizeof(from);
 
    int recv_len = recvfrom(sockfd, buffer, sizeof(buffer), 0, (struct sockaddr*)&from, &fromlen);
-
-    printf("main() 4 len %d\n", recv_len);
 
    if (recv_len < 0) {
        printf("Recvfrom failed: %d\n", WSAGetLastError());
@@ -169,7 +147,9 @@ int main(int argc, char *argv[])
 
 
    DNSHeader* responseHeader = (DNSHeader*)buffer;
-   printf("Received response %d:\n", responseHeader->rcode);
+   printf("Received response: %d\n", responseHeader->rcode);
+   printf("Authority: %d\n", responseHeader->aa);
+   printf("Recursion: %d\n", responseHeader->ra);
 
    if(ntohs(responseHeader->ancount) > 0) {
 
@@ -191,7 +171,7 @@ int main(int argc, char *argv[])
 /////           memcpy(&ipAddr.s_addr, answerPtr + sizeof(unsigned short)*3 + i * sizeof(struct in_addr), sizeof(struct in_addr));
            memcpy(&ipAddr.s_addr, answerPtr + sizeof(unsigned short)*4 + 2, sizeof(struct in_addr));
            printf("IP Address: %s\n", inet_ntoa(ipAddr));
-           answerPtr += sizeof(unsigned short)*3 + sizeof(struct in_addr);
+           answerPtr += sizeof(unsigned short)*4 + 2 + sizeof(struct in_addr);
        }
    } else {
        printf("No answers received.\n");
