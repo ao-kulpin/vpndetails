@@ -124,6 +124,12 @@ int main(int argc, char *argv[])
             case MIB_IF_TYPE_SLIP:
                 printf("Slip\n");
                 break;
+            case IF_TYPE_PROP_VIRTUAL:
+                printf("Virtual\n");
+                break;
+            case IF_TYPE_IEEE80211:
+                printf("IEEE80211\n");
+                break;
             default:
                 printf("Unknown type %ld\n", pAdapter->Type);
                 break;
