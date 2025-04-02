@@ -6,6 +6,7 @@
 #include <ws2tcpip.h>
 #include <iphlpapi.h>
 
+#include <locale>
 
 #pragma comment(lib, "iphlpapi.lib")
 #pragma comment(lib, "ws2_32.lib")
@@ -15,11 +16,13 @@ void PrintNetworkAdapters() {
     GetAdaptersAddresses(AF_UNSPEC, 0, NULL, 0, &outBufLen);
     std::vector<BYTE> buffer(outBufLen);
 
-    if (GetAdaptersAddresses(AF_UNSPEC, 0, NULL, reinterpret_cast<IP_ADAPTER_ADDRESSES*>(buffer.data()), &outBufLen) == NO_ERROR) {
+    if (GetAdaptersAddresses(AF_UNSPEC, GAA_FLAG_INCLUDE_GATEWAYS, NULL, reinterpret_cast<IP_ADAPTER_ADDRESSES*>(buffer.data()), &outBufLen) == NO_ERROR) {
         IP_ADAPTER_ADDRESSES* pAddresses = reinterpret_cast<IP_ADAPTER_ADDRESSES*>(buffer.data());
-        for (IP_ADAPTER_ADDRESSES* pCurrAddresses = pAddresses; pCurrAddresses != NULL; pCurrAddresses = pCurrAddresses->Next) {
-            std::wcout << L"Adapter Name: " << pCurrAddresses->AdapterName << std::endl;
-            std::wcout << L"Description: " << pCurrAddresses->Description << std::endl;
+        for (IP_ADAPTER_ADDRESSES* pCurrAddresses = pAddresses; pCurrAddresses; pCurrAddresses = pCurrAddresses->Next) {
+            char descr[1024];
+            wcstombs(descr, pCurrAddresses->Description, sizeof descr);
+            std::cout << "Adapter Name: " << pCurrAddresses->AdapterName << std::endl;
+            std::cout << "Description: " << descr << std::endl;
 
             // Получаем IP-адреса
             for (IP_ADAPTER_UNICAST_ADDRESS* pUnicast = pCurrAddresses->FirstUnicastAddress;
@@ -46,19 +49,48 @@ void PrintNetworkAdapters() {
                 char ipStr[INET_ADDRSTRLEN];
                 sockaddr_in* sa_in = reinterpret_cast<sockaddr_in*>(gateway->Address.lpSockaddr);
                 inet_ntop(AF_INET, &(sa_in->sin_addr), ipStr, sizeof(ipStr));
-                std::wcout << L"Default Gateway: " << ipStr << std::endl;
+                std::cout << "Default Gateway: " << ipStr << std::endl;
             }
-            std::wcout << std::endl;
+
+            // Получаем DNS-серверы
+            for (IP_ADAPTER_DNS_SERVER_ADDRESS* dnsServer = pCurrAddresses->FirstDnsServerAddress; dnsServer != nullptr; dnsServer = dnsServer->Next) {
+                char dnsStr[INET6_ADDRSTRLEN];
+                sockaddr* sa_dns = dnsServer->Address.lpSockaddr;
+
+                if (sa_dns->sa_family == AF_INET) { // IPv4
+                    sockaddr_in* sa_in = reinterpret_cast<sockaddr_in*>(sa_dns);
+                    inet_ntop(AF_INET, &(sa_in->sin_addr), dnsStr, sizeof(dnsStr));
+                } else if (sa_dns->sa_family == AF_INET6) { // IPv6
+                    sockaddr_in6* sa_in6 = reinterpret_cast<sockaddr_in6*>(sa_dns);
+                    inet_ntop(AF_INET6, &(sa_in6->sin6_addr), dnsStr, sizeof(dnsStr));
+                }
+
+                std::cout << "DNS Server " << (sa_dns->sa_family == AF_INET ? "ipv4: " : "ipv6: ") << dnsStr << std::endl;
+            }
+
+            std::cout << std::endl;
         }
     } else {
         std::cerr << "Failed to get adapter addresses." << std::endl;
     }
 }
 
+static
+void printIP(const char* label, const IP_ADDR_STRING* ips) {
+    printf("%s", label );
+    for( auto ip = ips; ip; ip = ip->Next)
+        printf(" %s/%s", ip->IpAddress.String, ip->IpMask.String);
+    printf("\n");
+}
+
 int main(int argc, char *argv[])
 {
     QCoreApplication a(argc, argv);
 
+    printf("\n***** get info from GetAdaptersAddresses *****\n\n");
+    PrintNetworkAdapters();
+
+    printf("\n***** get info from GetAdaptersInfo *****\n\n");
 
     PIP_ADAPTER_INFO pAdapterInfo;
     PIP_ADAPTER_INFO pAdapter = NULL;
@@ -135,17 +167,21 @@ int main(int argc, char *argv[])
                 break;
             }
 
-            printf("\tIP Address: \t%s\n",
-                   pAdapter->IpAddressList.IpAddress.String);
-            printf("\tIP Mask: \t%s\n", pAdapter->IpAddressList.IpMask.String);
+//            printf("\tIP Address: \t%s\n",
+//                   pAdapter->IpAddressList.IpAddress.String);
+            printIP("\tIP Address: \t", &pAdapter->IpAddressList);
 
-            printf("\tGateway: \t%s\n", pAdapter->GatewayList.IpAddress.String);
+//            printf("\tIP Mask: \t%s\n", pAdapter->IpAddressList.IpMask.String);
+
+//            printf("\tGateway: \t%s\n", pAdapter->GatewayList.IpAddress.String);
+            printIP("\tGateway: \t", &pAdapter->GatewayList);
             printf("\t***\n");
 
             if (pAdapter->DhcpEnabled) {
                 printf("\tDHCP Enabled: Yes\n");
-                printf("\t  DHCP Server: \t%s\n",
-                       pAdapter->DhcpServer.IpAddress.String);
+//                printf("\t  DHCP Server: \t%s\n",
+//                       pAdapter->DhcpServer.IpAddress.String);
+                printIP("\t  DHCP Server: \t", &pAdapter->DhcpServer);
 
                 printf("\t  Lease Obtained: ");
                 /* Display local time */

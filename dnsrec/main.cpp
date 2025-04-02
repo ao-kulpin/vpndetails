@@ -15,9 +15,10 @@
 #pragma comment(lib, "Ws2_32.lib")
 
 //#define DNS_SERVER "8.8.8.8" // Google Public DNS
-//#define DNS_SERVER "1.1.1.1"
+#define DNS_SERVER "1.1.1.1"   // Cloudflare
 //#define DNS_SERVER "192.168.0.1"
-#define DNS_SERVER "109.195.80.1"
+//#define DNS_SERVER "109.195.80.1"
+//#define DNS_SERVER "0.0.0.0"
 #define DNS_PORT 53
 
 // Структура для DNS-запроса
@@ -105,6 +106,18 @@ int main(int argc, char *argv[])
         return 1;
     }
 
+    // Указание IP-адреса интерфейса
+    struct in_addr iface_addr;
+    inet_pton(AF_INET, "192.168.0.102", &iface_addr); // Замените на ваш IP-адрес интерфейса
+    DWORD index = 0;
+#if 0
+    if (setsockopt(sockfd, IPPROTO_IP, IP_UNICAST_IF,
+                   (const char*) &iface_addr, sizeof iface_addr)){
+        printf("setsockopt fails %d\n", WSAGetLastError());
+        return 1;
+    }
+#endif
+
     struct sockaddr_in dest;
 
     dest.sin_family = AF_INET;
@@ -135,7 +148,7 @@ int main(int argc, char *argv[])
     struct sockaddr_in from;
 
     int fromlen = sizeof(from);
-
+    printf("waiting an answer from %s ...\n", DNS_SERVER);
    int recv_len = recvfrom(sockfd, buffer, sizeof(buffer), 0, (struct sockaddr*)&from, &fromlen);
 
    if (recv_len < 0) {
