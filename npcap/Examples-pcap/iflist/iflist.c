@@ -49,6 +49,97 @@
 	#include <winsock2.h>
 #endif
 
+#include <iphlpapi.h>
+#include <inaddr.h>
+
+#pragma comment(lib, "iphlpapi.lib")
+#pragma comment(lib, "ws2_32.lib")
+
+typedef DWORD (WINAPI* psendarp)(struct in_addr DestIP, struct in_addr SrcIP, PULONG pMacAddr, PULONG PhyAddrLen );
+typedef DWORD (WINAPI* pgetadaptersinfo)(PIP_ADAPTER_INFO pAdapterInfo, PULONG pOutBufLen );
+
+psendarp SendArp;
+pgetadaptersinfo GetAdaptersInfo2;
+
+void loadiphlpapi() 
+{
+	HINSTANCE hDll = LoadLibrary("iphlpapi.dll");
+		
+	GetAdaptersInfo2 = (pgetadaptersinfo)GetProcAddress(hDll,"GetAdaptersInfo");
+	if(GetAdaptersInfo2==NULL)
+	{
+		printf("Error in iphlpapi.dll%d",GetLastError());
+	}
+
+	SendArp = (psendarp)GetProcAddress(hDll,"SendARP");
+	
+	if(SendArp==NULL)
+	{
+		printf("Error in iphlpapi.dll%d",GetLastError());
+	}
+}
+
+
+/*
+	Get the mac address of a given ip
+*/
+void GetMacAddress(unsigned char *mac , struct in_addr destip) 
+{
+	DWORD ret;
+	struct in_addr srcip;
+	ULONG MacAddr[2];
+	ULONG PhyAddrLen = 6;  /* default to length of six bytes */
+	
+	srcip.s_addr=0;
+
+	//Send an arp packet
+	ret = SendArp(destip , srcip , MacAddr , &PhyAddrLen);
+	
+	//Prepare the mac address
+	if(PhyAddrLen)
+	{
+		BYTE *bMacAddr = (BYTE *) & MacAddr;
+		for (int i = 0; i < (int) PhyAddrLen; i++)
+		{
+			mac[i] = (char)bMacAddr[i];
+		}
+	}
+}
+
+/*
+Get the gateway of a given ip
+For example for ip 192.168.1.10 the gateway is 192.168.1.1
+*/
+void GetGateway(struct in_addr ip , char *sgatewayip , int *gatewayip) 
+{
+	ULONG outBufLen = 0;
+    GetAdaptersAddresses(AF_UNSPEC, 0, NULL, 0, &outBufLen);
+
+	char *pAdapterInfo = calloc(1, outBufLen);
+	IP_ADAPTER_ADDRESSES*  AdapterInfo;
+	ULONG OutBufLen = sizeof(pAdapterInfo) ;
+	
+	////GetAdaptersInfo2((PIP_ADAPTER_INFO) pAdapterInfo, &OutBufLen); 
+	if (GetAdaptersAddresses(AF_UNSPEC, GAA_FLAG_INCLUDE_GATEWAYS, NULL, (PIP_ADAPTER_ADDRESSES) pAdapterInfo, &outBufLen) == NO_ERROR) {
+
+		for (AdapterInfo = (IP_ADAPTER_ADDRESSES*) pAdapterInfo; AdapterInfo; 
+			 AdapterInfo = AdapterInfo->Next)	{
+			IP_ADAPTER_UNICAST_ADDRESS* pUnicast = AdapterInfo->FirstUnicastAddress;
+			struct sockaddr* sa = pUnicast->Address.lpSockaddr;
+
+			if (ip.s_addr == ((struct sockaddr_in*)sa)->sin_addr.s_addr && AdapterInfo->FirstGatewayAddress)
+			{
+				strcpy(sgatewayip, 
+					inet_ntoa(((struct sockaddr_in*) AdapterInfo->FirstGatewayAddress->Address.lpSockaddr)->sin_addr));
+				break;
+			}
+		}
+	}
+	
+	*gatewayip = inet_addr(sgatewayip);
+	free(pAdapterInfo);
+}
+
 #ifdef _WIN32
 #include <tchar.h>
 BOOL LoadNpcapDlls()
@@ -82,6 +173,8 @@ int main()
 	pcap_if_t *d;
 	char errbuf[PCAP_ERRBUF_SIZE+1];
 	
+	loadiphlpapi();
+
 #ifdef _WIN32
 	WSADATA wsadata;
 	int err = WSAStartup(MAKEWORD(2,2), &wsadata);
@@ -155,8 +248,18 @@ void ifprint(pcap_if_t *d)
         printf("\tAddress Family Name: Unknown\n");
         break;
     }
-    if (a->addr && a->addr->sa_family > 0)
-      printf("\tAddress: %s\n",iptos(a->addr));
+	if (a->addr && a->addr->sa_family > 0) {
+		printf("\tAddress: %s\n", iptos(a->addr));
+		UCHAR mac[6] = { 0 };
+		GetMacAddress(mac, ((struct sockaddr_in*) a->addr)->sin_addr);
+		printf("\tMac address : %.2X-%.2X-%.2X-%.2X-%.2X-%.2X\n", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+
+		char gateway_s[16] = { 0 };
+		int gateway;
+		GetGateway(((struct sockaddr_in*)a->addr)->sin_addr, gateway_s, &gateway);
+		printf("\tgateway: %s\n", gateway_s);
+
+	}
     if (a->netmask && a->netmask->sa_family > 0)
       printf("\tNetmask: %s\n",iptos(a->netmask));
     if (a->broadaddr && a->broadaddr->sa_family > 0)

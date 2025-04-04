@@ -277,7 +277,7 @@ int main(int argc, char **argv)
 			return 4;
 	}
 	
-	for (int i = 0; i < 10; ++i) {
+	for (int i = 0; i < 100; ++i) {
 		iph->identification = i;
 		iph->crc = 0;
 		iph->crc = // htons
