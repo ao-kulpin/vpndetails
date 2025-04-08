@@ -71,6 +71,14 @@ typedef struct ip_address
 	u_char byte4;
 }ip_address;
 
+typedef struct vlan_eth_header {
+    uint8_t  ether_dhost[6];  // MAC получателя
+    uint8_t  ether_shost[6];  // MAC отправителя
+    uint16_t vlan_tag;        // 0x8100 (VLAN)
+    uint16_t tci;             // Tag Control Information (PCP, DEI, VID)
+    uint16_t ether_type;      // Инкапсулированный протокол
+} vlan_eth_header;
+
 /* IPv4 header */
 typedef struct ip_header
 {
@@ -267,16 +275,29 @@ void packet_handler(u_char *param, const struct pcap_pkthdr *header, const u_cha
 	strftime( timestr, sizeof timestr, "%H:%M:%S", ltime);
 
 	/* retireve the position of the ip header */
+
+	vlan_eth_header* eth = (vlan_eth_header*) pkt_data;
+
+	int eth_len = 14; // default length of ethernet header
+
+	if (ntohs(eth->vlan_tag) == 0x8100) { // VLAN 802.1Q)
+		eth_len = 18;
+        uint16_t inner_ethertype = ntohs(*(uint16_t*)(pkt_data + 16));
+        if (inner_ethertype == 0x8100 || inner_ethertype == 0x88A8) { // Q-in-Q
+            eth_len = 22;
+        }
+	}
+
 	ip_header *ih = (ip_header *) (pkt_data +
-		14); //length of ethernet header
+		eth_len); //length of ethernet header
 
 	/* retireve the position of the udp header */
 	ip_len = (ih->ver_ihl & 0xf) * 4;
 	/////// uh = (udp_header *) ((u_char*)ih + ip_len);
 
 	char plen[32];
-	sprintf(plen, "%d(%u %d)", header->len,  ntohs
-															(ih->tlen), ip_len);
+	sprintf(plen, "%d(%u %d %d)", header->len,  ntohs
+															(ih->tlen), ip_len, eth_len);
 
 	/* print timestamp and length of the packet */
 	printf("%s.%.6d len:%-14s ", timestr, header->ts.tv_usec, plen);
