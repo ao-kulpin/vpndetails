@@ -5,6 +5,7 @@
 
 #ifdef _WIN32
 #include <tchar.h>
+#include <iphlpapi.h>
 
 #pragma comment(lib, "ws2_32.lib") // Линковка с библиотекой Winsock
 
@@ -31,6 +32,69 @@ typedef struct icmp_header {
     uint16_t id;       // Identifier (used for matching requests and replies)
     uint16_t sequence; // Sequence number (used for matching requests and replies)
 } icmp_header;
+
+#pragma comment(lib, "iphlpapi.lib")
+
+/*
+	Get the mac address of a given ip
+*/
+void GetMacAddress(unsigned char *mac , IPAddr destip) 
+{
+	DWORD ret;
+	IPAddr srcip = 0;
+	ULONG MacAddr[2] = { 0 };
+	ULONG PhyAddrLen = 6;  /* default to length of six bytes */
+	
+	//Send an arp packet
+	ret = SendARP(destip , srcip , MacAddr , &PhyAddrLen);
+	
+	//Prepare the mac address
+	if(PhyAddrLen)
+	{
+		BYTE *bMacAddr = (BYTE *) & MacAddr;
+		for (int i = 0; i < (int) PhyAddrLen; i++)
+		{
+			mac[i] = (char)bMacAddr[i];
+		}
+	}
+}
+
+/*
+Get the gateway of a given ip
+For example for ip 192.168.1.10 the gateway is 192.168.1.1
+*/
+void GetGateway(struct in_addr ip, char *sgatewayip, IPAddr *gatewayip) 
+{
+	ULONG outBufLen = 0;
+    GetAdaptersAddresses(AF_UNSPEC, 0, NULL, 0, &outBufLen);
+
+	char *pAdapterInfo = calloc(1, outBufLen);
+	IP_ADAPTER_ADDRESSES*  AdapterInfo;
+	ULONG OutBufLen = sizeof(pAdapterInfo) ;
+	
+	////GetAdaptersInfo2((PIP_ADAPTER_INFO) pAdapterInfo, &OutBufLen); 
+	if (GetAdaptersAddresses(AF_UNSPEC, GAA_FLAG_INCLUDE_GATEWAYS, NULL, (PIP_ADAPTER_ADDRESSES) pAdapterInfo, &outBufLen) == NO_ERROR) {
+
+		for (AdapterInfo = (IP_ADAPTER_ADDRESSES*) pAdapterInfo; AdapterInfo; 
+			 AdapterInfo = AdapterInfo->Next)	{
+			IP_ADAPTER_UNICAST_ADDRESS* pUnicast = AdapterInfo->FirstUnicastAddress;
+			struct sockaddr* sa = pUnicast->Address.lpSockaddr;
+
+			if (ip.s_addr == ((struct sockaddr_in*)sa)->sin_addr.s_addr && AdapterInfo->FirstGatewayAddress)
+			{
+				strcpy(sgatewayip, 
+					inet_ntoa(((struct sockaddr_in*) AdapterInfo->FirstGatewayAddress->Address.lpSockaddr)->sin_addr));
+				break;
+			}
+		}
+	}
+	
+	*gatewayip = inet_addr(sgatewayip);
+	free(pAdapterInfo);
+}
+
+
+
 
 // Функция для вычисления контрольной суммы
 unsigned short checksum(void *b, int len) {
@@ -197,8 +261,24 @@ int main(int argc, char **argv)
 //////	packet[14 + 20 + 4] = 0xff & ((ORIG_PACKET_LEN - 14 - 20) >> 8);
 ////	packet[14 + 20 + 5] = 0xff & (ORIG_PACKET_LEN - 14 - 20);
 
+	IN_ADDR* sin_addr = &((struct sockaddr_in*)(addr->addr))->sin_addr;
 	printf("*** source IP: %s\n", 
-		inet_ntoa(((struct sockaddr_in *)(addr->addr))->sin_addr));
+		inet_ntoa(*sin_addr));
+
+	u_char* src_mac = packet + 6;
+	GetMacAddress(src_mac, sin_addr->S_un.S_addr);
+
+	printf("*** Source Mac address : %.2X-%.2X-%.2X-%.2X-%.2X-%.2X\n", src_mac[0], src_mac[1], src_mac[2], src_mac[3], src_mac[4], src_mac[5]);
+
+	char gateway_s[64];
+	IPAddr gateway;
+	GetGateway(*sin_addr, gateway_s, &gateway);
+
+	printf("*** Gateway: %s\n", gateway_s);
+
+	GetMacAddress(packet, gateway);
+
+	printf("*** Gateway Mac address : %.2X-%.2X-%.2X-%.2X-%.2X-%.2X\n", packet[0], packet[1], packet[2], packet[3], packet[4], packet[5]);
 
 //	*(u_long *)(packet + 14 + 12) = ((struct sockaddr_in *)(addr->addr))->sin_addr.S_un.S_addr;
 
@@ -277,7 +357,7 @@ int main(int argc, char **argv)
 			return 4;
 	}
 	
-	for (int i = 0; i < 100; ++i) {
+	for (int i = 0; i < 10; ++i) {
 		iph->identification = i;
 		iph->crc = 0;
 		iph->crc = // htons
