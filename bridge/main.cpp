@@ -49,6 +49,11 @@ int main(int argc, char *argv[])
 {
     QCoreApplication a(argc, argv);
 
+    if(!WinTunLib::isLoaded()) {
+        printf("Can't load wintun.dll\n");
+        return 1;
+    }
+
     printf("wintun %p\n", InitializeWintun());
 
     printf("Hello\n");
