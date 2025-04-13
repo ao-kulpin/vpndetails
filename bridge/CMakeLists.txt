@@ -18,6 +18,7 @@ add_executable(bridge
   main.cpp
   wintun/wintunlib.h
   wintun/wintunlib.cpp
+  killer.h
 )
 target_link_libraries(bridge Qt${QT_VERSION_MAJOR}::Core)
 

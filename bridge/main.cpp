@@ -6,6 +6,8 @@
 #include "wintun.h"
 #include "wintunlib.h"
 
+#include "killer.h"
+
 static WINTUN_CREATE_ADAPTER_FUNC *WintunCreateAdapter;
 static WINTUN_CLOSE_ADAPTER_FUNC *WintunCloseAdapter;
 static WINTUN_OPEN_ADAPTER_FUNC *WintunOpenAdapter;
@@ -49,10 +51,19 @@ int main(int argc, char *argv[])
 {
     QCoreApplication a(argc, argv);
 
-    if(!WinTunLib::isLoaded()) {
+    if(WinTunLib::isLoaded())
+        printf("wintun.dll is loaded\n");
+    else {
         printf("Can't load wintun.dll\n");
         return 1;
     }
+
+    Killer wtlk ( [] {
+        WinTunLib::unload();
+        printf("wintun.dll is unloaded\n");
+    });
+
+
 
     printf("wintun %p\n", InitializeWintun());
 
