@@ -4,6 +4,8 @@
 #include <QtEndian>
 #include <stdio.h>
 
+#include <csignal>
+
 #include <winsock2.h>
 #include <Windows.h>
 #include <ws2ipdef.h>
@@ -17,7 +19,10 @@ BridgeData bdata; // common data of the application
 
 WinTunLib* WinTunLib::mInstance = nullptr;
 
-#pragma comment(lib, "iphlpapi.lib")
+void signalHandler(int signum) {
+    printf("\nTerminated by user\n");
+    QCoreApplication::quit();
+}
 
 static bool
 setIPAddress () {
@@ -102,9 +107,9 @@ int main(int argc, char *argv[])
 
 
 
-    printf("Hello\n");
-    ///////// qDebug() << "Hello\n";
+    printf("Waiting for Ctrl-C ...\n");
 
-    a.exit();
-    return 0;
+    std::signal(SIGINT, signalHandler);
+
+    return a.exec();
 }
