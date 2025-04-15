@@ -28,8 +28,7 @@ setIPAddress () {
     WinTunLib::getAdapterLUID(virtAdapter, &AddressRow.InterfaceLuid);
     AddressRow.Address.Ipv4.sin_family = AF_INET;
     AddressRow.Address.Ipv4.sin_addr.S_un.S_addr =
-                qToBigEndian(
-                    QHostAddress(bdata.virtAdapterIP).toIPv4Address());
+                qToBigEndian(bdata.virtAdapterIP.toIPv4Address());
     AddressRow.OnLinkPrefixLength = bdata.virtAdapterMaskLen;
     AddressRow.DadState = IpDadStatePreferred;
     auto LastError = CreateUnicastIpAddressEntry(&AddressRow);
@@ -62,6 +61,7 @@ int main(int argc, char *argv[])
 
     auto& virtAdapter = bdata.virtAdapter;
     auto& adapGuid = bdata.adapGuid;
+    auto& session = bdata.session;
     virtAdapter = WinTunLib::createAdapter(L"Bridge", L"Adapter", &adapGuid);
 
     if (virtAdapter) {
@@ -83,6 +83,21 @@ int main(int argc, char *argv[])
         a.exit(1);
         return 1;
     }
+
+    session = WinTunLib::startSession(virtAdapter, bdata.ringSize);
+    if (session)
+        printf("Session is started\n");
+    else {
+        printf("Can't start the session (error=%ld)\n", GetLastError());
+        a.exit(1);
+        return 1;
+    }
+
+    Killer sek ( [] {
+        WinTunLib::endSession(session);
+        printf("Session is ended\n");
+    });
+
 
 
 
