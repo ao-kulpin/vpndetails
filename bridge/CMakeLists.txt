@@ -20,6 +20,7 @@ add_executable(bridge
   wintun/wintunlib.cpp
   killer.h
   BridgeData.h
+  routetable.h routetable.cpp
 )
 target_link_libraries(bridge Qt${QT_VERSION_MAJOR}::Core Qt${QT_VERSION_MAJOR}::Network Iphlpapi.lib)
 

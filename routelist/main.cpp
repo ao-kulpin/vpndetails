@@ -91,7 +91,7 @@ int main(int argc, char *argv[])
                 (u_long) pIpForwardTable->table[i].dwForwardNextHop;
             strcpy_s(szGatewayIp, sizeof (szGatewayIp), inet_ntoa(IpAddr));
 
-            printf("\n\tRoute[%d] Dest IP: %s\n", i, szDestIp);
+            printf("\n\tRoute[%d] Dest IP: %s (%08X)\n", i, szDestIp, pIpForwardTable->table[i].dwForwardDest);
             printf("\tRoute[%d] Subnet Mask: %s\n", i, szMaskIp);
             printf("\tRoute[%d] Next Hop: %s\n", i, szGatewayIp);
             printf("\tRoute[%d] If Index: %ld (IP:%s)\n", i,

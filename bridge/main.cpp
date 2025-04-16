@@ -51,6 +51,11 @@ int main(int argc, char *argv[])
 {
     QCoreApplication a(argc, argv);
 
+    if (argc > 1)
+        bdata.realAdapterIP = QHostAddress(argv[1]);
+
+    printf("Bridge IP: %s\n", bdata.realAdapterIP.toString().toStdString().c_str());
+
     if(WinTunLib::isLoaded())
         printf("wintun.dll is loaded\n");
     else {
