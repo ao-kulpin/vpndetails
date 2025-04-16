@@ -179,8 +179,12 @@ int main(int argc, char *argv[])
 
             printf("\tRoute[%d] Age: %ld\n", i,
                    pIpForwardTable->table[i].dwForwardAge);
-            printf("\tRoute[%d] Metric1: %ld\n", i,
-                   pIpForwardTable->table[i].dwForwardMetric1);
+            printf("\tRoute[%d] Metric: %ld %ld %ld %ld %ld\n", i,
+                   pIpForwardTable->table[i].dwForwardMetric1,
+                   pIpForwardTable->table[i].dwForwardMetric2,
+                   pIpForwardTable->table[i].dwForwardMetric3,
+                   pIpForwardTable->table[i].dwForwardMetric4,
+                   pIpForwardTable->table[i].dwForwardMetric5);
         }
         free(pIpForwardTable);
         return 0;
