@@ -96,6 +96,8 @@ int main(int argc, char *argv[])
             printf("\tRoute[%d] Next Hop: %s\n", i, szGatewayIp);
             printf("\tRoute[%d] If Index: %ld (IP:%s)\n", i,
                    pIpForwardTable->table[i].dwForwardIfIndex, findIP(pAdapterInfo, pIpForwardTable->table[i].dwForwardIfIndex).c_str());
+            printf("\tRoute[%d] Policy: %d\n", i, pIpForwardTable->table[i].dwForwardPolicy);
+            printf("\tRoute[%d] NextHopAS: %d\n", i, pIpForwardTable->table[i].dwForwardNextHopAS);
             printf("\tRoute[%d] Type: %ld - ", i,
                    pIpForwardTable->table[i].dwForwardType);
             switch (pIpForwardTable->table[i].dwForwardType) {

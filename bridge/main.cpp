@@ -14,6 +14,7 @@
 
 #include "bridgedata.h"
 #include "killer.h"
+#include "routetable.h"
 
 BridgeData bdata; // common data of the application
 
@@ -108,9 +109,24 @@ int main(int argc, char *argv[])
         printf("Session is ended\n");
     });
 
+// #if 0
+    RouteTable rtable;
 
+    if (rtable.updateDefaultRoute())
+        printf("Route table is updated\n");
+    else {
+        printf("Can't update the route table\n");
+        return 1;
+    }
 
-
+    Killer rtk ( [&] {
+        if (rtable.restoreDefaultRoute())
+            printf("Route table is restored\n");
+        else {
+            printf("Can't restore the route table\n");
+        }
+    });
+//#endif
 
     printf("Waiting for Ctrl-C ...\n");
 

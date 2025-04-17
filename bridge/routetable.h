@@ -15,7 +15,9 @@ public:
 
 private:
     bool updateOldDefaults();
+    bool restoreOldDefaults();
     bool createNewDefault();
+    bool deleteNewDefault();
     int  getIndex(DWORD ip4);
 
     QScopedPointer<MIB_IPFORWARDTABLE>  mForwadTable;

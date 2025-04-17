@@ -22,7 +22,7 @@ add_executable(bridge
   BridgeData.h
   routetable.h routetable.cpp
 )
-target_link_libraries(bridge Qt${QT_VERSION_MAJOR}::Core Qt${QT_VERSION_MAJOR}::Network Iphlpapi.lib)
+target_link_libraries(bridge Qt${QT_VERSION_MAJOR}::Core Qt${QT_VERSION_MAJOR}::Network Iphlpapi.lib Ws2_32.lib)
 
 include(GNUInstallDirs)
 install(TARGETS bridge
