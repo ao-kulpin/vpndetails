@@ -19,7 +19,7 @@ public:
     int virtAdapterMaskLen              {24};
     WINTUN_SESSION_HANDLE session       {nullptr};
     int ringSize                        {0x400000};
-    int oldDefaultMetric                {50};
+    int defaultMetricAdd                {100};
 };
 
 extern BridgeData bdata;

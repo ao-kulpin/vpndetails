@@ -19,9 +19,13 @@ private:
     bool createNewDefault();
     bool deleteNewDefault();
     int  getIndex(DWORD ip4);
+    bool resetVirtMetric();
+    IP_ADAPTER_INFO* getAdapts();
 
     QScopedPointer<MIB_IPFORWARDTABLE>  mForwadTable;
     QScopedPointer<IP_ADAPTER_INFO>     mAdapts;
+
+    int                                 mVirtAdapIndex = -1;
 };
 
 #endif // ROUTETABLE_H

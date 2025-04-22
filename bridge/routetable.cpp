@@ -9,9 +9,9 @@
 
 #include <stdio.h>
 
-RouteTable::RouteTable() {
-
-}
+RouteTable::RouteTable() :
+    mVirtAdapIndex {getIndex(qToBigEndian(bdata.virtAdapterIP.toIPv4Address()))}
+{}
 
 RouteTable::~RouteTable() {
     restoreDefaultRoute();
@@ -37,7 +37,7 @@ bool RouteTable::updateDefaultRoute() {
     else
         return ftFail();
 
-    return /*updateOldDefaults() && */ createNewDefault();
+    return resetVirtMetric() && updateOldDefaults() && createNewDefault();
 }
 
 bool RouteTable::restoreDefaultRoute() {
@@ -56,14 +56,16 @@ static inline
 }
 
 bool updateMetric(const MIB_IPFORWARDROW& oldRoute, int metric) {
+    // printf("+++ updateMetric(%p %d)\n", &oldRoute, metric);
     MIB_IPFORWARDROW newRoute;
     memcpy(&newRoute, &oldRoute, sizeof newRoute);
     newRoute.dwForwardMetric1 = metric;
 
-    if (SetIpForwardEntry(&newRoute) == NO_ERROR)
+    int rc = -1;
+    if ((rc = SetIpForwardEntry(&newRoute)) == NO_ERROR)
         return true;
     else {
-        printf("SetIpForwardEntry() fails\n");
+        printf("SetIpForwardEntry() fails rc=%d\n", rc);
         return false;
     }
 }
@@ -73,9 +75,8 @@ bool RouteTable::updateOldDefaults() {
     for (int ir = 0; ir < mForwadTable->dwNumEntries; ++ir) {
         auto& route = mForwadTable->table[ir];
         if (isDefault(route)) {
-            if (!updateMetric(route, bdata.oldDefaultMetric))
+            if (!updateMetric(route, route.dwForwardMetric1 + bdata.defaultMetricAdd))
                 return false;
-
         }
     }
 
@@ -96,33 +97,20 @@ bool RouteTable::restoreOldDefaults() {
 
 bool RouteTable::createNewDefault() {
     MIB_IPFORWARD_ROW2  route = {0};
-    memset(&route, 0, sizeof route);
     InitializeIpForwardEntry(&route);
-    ///
-    ///
-    //WinTunLib::getAdapterLUID(bdata.virtAdapter, &route.InterfaceLuid);
 
     route.DestinationPrefix.Prefix.si_family = AF_INET;
     route.NextHop.si_family = AF_INET;
-    route.Metric = 12;
+    route.Metric = 0;
 
-    route.InterfaceIndex = getIndex(qToBigEndian(bdata.virtAdapterIP.toIPv4Address()));
+    route.InterfaceIndex = mVirtAdapIndex;
     route.DestinationPrefix.PrefixLength = 0;
-    route.Age = 456;
+    route.Age = 0;
     route.Protocol = RouteProtocolNetMgmt;
-
-#if 0
-    route.dwForwardDest     = 0;
-    route.dwForwardNextHop  = qToBigEndian(bdata.virtAdapterIP.toIPv4Address());
-    route.dwForwardIfIndex  = getIndex(route.dwForwardNextHop);
-    route.dwForwardType     = 3;
-    route.dwForwardProto    = MIB_IPPROTO_NETMGMT;
-    ///////////route.dwForwardAge      = 123;
-#endif
 
     int rc = CreateIpForwardEntry2(&route);
     if (rc == NO_ERROR || rc == ERROR_OBJECT_ALREADY_EXISTS) {
-        printf("\n+++ CreateIpForwardEntry2(%d %ld %ld)\n", rc, route.Metric, route.Age);
+        // printf("\n+++ CreateIpForwardEntry2(%d %ld %ld)\n", rc, route.Metric, route.Age);
         return true;
     }
     else {
@@ -132,33 +120,14 @@ bool RouteTable::createNewDefault() {
 }
 
 bool RouteTable::deleteNewDefault() {
-#if 0
-    MIB_IPFORWARDROW route;
-    memset(&route, 0, sizeof route);
-
-    route.dwForwardDest     = qToBigEndian(bdata.virtAdapterIP.toIPv4Address());
-    route.dwForwardIfIndex  = getIndex(route.dwForwardDest);
-    route.dwForwardType     = 2;
-    route.dwForwardProto    = MIB_IPPROTO_NETMGMT;
-    route.dwForwardAge      = 123;
-
-    if (DeleteIpForwardEntry(&route) == NO_ERROR)
-        return true;
-    else {
-        printf("DeleteIpForwardEntry() fails\n");
-        return false;
-    }
-#endif
 
     MIB_IPFORWARD_ROW2  route = {0};
     InitializeIpForwardEntry(&route);
-    WinTunLib::getAdapterLUID(bdata.virtAdapter, &route.InterfaceLuid);
 
     route.DestinationPrefix.Prefix.si_family = AF_INET;
     route.NextHop.si_family = AF_INET;
     route.Metric = 0;
-
-    route.InterfaceIndex = getIndex(qToBigEndian(bdata.virtAdapterIP.toIPv4Address()));
+    route.InterfaceIndex = mVirtAdapIndex;
 
     int rc = -1;
     if ((rc = DeleteIpForwardEntry2(&route)) == NO_ERROR)
@@ -167,17 +136,13 @@ bool RouteTable::deleteNewDefault() {
         printf("DeleteIpForwardEntry2() fails rc:%d\n", rc);
         return false;
     }
-
-
-
 }
 
-
-int RouteTable::getIndex(DWORD ip4) {
+IP_ADAPTER_INFO* RouteTable::getAdapts() {
     if (!mAdapts) {
         auto aiFail = []{
             printf("GetAdaptersInfo() fails\n");
-            return -1;
+            return nullptr;
         };
 
         DWORD adaptSize = 0;
@@ -197,7 +162,48 @@ int RouteTable::getIndex(DWORD ip4) {
         }
     }
 
-    for (auto* ad = mAdapts.get(); ad; ad = ad->Next) {
+    return mAdapts.get();
+}
+
+bool RouteTable::resetVirtMetric() {
+    MIB_IPINTERFACE_ROW row;
+    InitializeIpInterfaceEntry(&row);
+
+    row.Family = AF_INET;
+    row.InterfaceIndex = mVirtAdapIndex;
+
+    int rc1 = -1;
+    if ((rc1 = GetIpInterfaceEntry(&row)) == NO_ERROR) {
+        //printf("\n+++ Metric=%d Family=%d Index=%d SitePrefixLength=%ld DisableDefaultRoutes=%d UseAutomaticMetric=%d\n",
+        //       row.Metric, row.Family, row.InterfaceIndex,
+        //      row.SitePrefixLength, row.DisableDefaultRoutes,
+        //       int(row.UseAutomaticMetric));
+
+        row.SitePrefixLength = 0;
+        row.UseAutomaticMetric = FALSE; // important !!!
+        row.Metric = 0;  // zero metric
+
+        int rc2 = -1;
+        if ((rc2 = SetIpInterfaceEntry(&row)) == NO_ERROR)
+            return true;
+        else {
+            printf("SetIpInterfaceEntry() fails rc=%d\n", rc2);
+            return false;
+        }
+    }
+    else {
+        printf("GetIpInterfaceEntry() fails rc=%d\n", rc1);
+        return false;
+    }
+
+    return true;
+}
+
+int RouteTable::getIndex(DWORD ip4) {
+    auto* alist = getAdapts();
+    if (!alist)
+        return -1;
+    for (auto* ad = alist; ad; ad = ad->Next) {
         for(auto* ips = &ad->IpAddressList; ips; ips = ips->Next) {
             in_addr ia;
             if (inet_pton(AF_INET, ips->IpAddress.String, &ia) <= 0)
