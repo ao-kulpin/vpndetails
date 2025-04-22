@@ -23,6 +23,7 @@ add_executable(bridge
   routetable.h routetable.cpp
   IP/protocol.h
   IP/protocol.cpp
+  receiver.h receiver.cpp
 )
 target_link_libraries(bridge Qt${QT_VERSION_MAJOR}::Core Qt${QT_VERSION_MAJOR}::Network Iphlpapi.lib Ws2_32.lib)
 

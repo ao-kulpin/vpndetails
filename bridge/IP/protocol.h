@@ -31,7 +31,6 @@ public:
     u_char*    data()       { return mData.data(); }
     IPHeader*  header()     { return reinterpret_cast<IPHeader*>(mData.data()); }
 
-
 private:
     QVector<u_char> mData;
 };
