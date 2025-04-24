@@ -2,16 +2,21 @@
 #include "receiver.h"
 #include "BridgeData.h"
 
-Receiver::Receiver() {}
+VirtReceiver::VirtReceiver() {}
 
-void Receiver::run() {
-    auto readEvent = WinTunLib::getReadWaitEvent(bdata.session);
+void VirtReceiver::run() {
+    HANDLE events[] = {bdata.quitEvent, WinTunLib::getReadWaitEvent(bdata.session)};
 
-    while(true) {
+    int packetCount = 0;
+    while(!bdata.haveQuit) {
         DWORD packetSize = 0;
         BYTE* packet = WinTunLib::receivePacket(bdata.session, &packetSize);
         if (packet) {
-            printf("Packed is received size:%ld\n", packetSize);
+            if (++packetCount % 50 == 0)
+                printf("%d packets received\n", packetCount);
+
+            bdata.virtReceiveQueue.push(std::make_unique<IPPacket>(packet, packetSize));
+
             WinTunLib::releaseReceivePacket(bdata.session, packet);
 
         }
@@ -19,9 +24,10 @@ void Receiver::run() {
             switch (GetLastError())
             {
             case ERROR_NO_MORE_ITEMS:
-                DWORD wres = WaitForSingleObject(readEvent, INFINITE);
+                DWORD wres = WaitForMultipleObjects(2, events, FALSE, INFINITE);
                 switch (wres) {
                 case WAIT_OBJECT_0:
+                case WAIT_OBJECT_0 + 1:
                     continue;
                 default:
                     printf("\nError: Receiver fails\n");
@@ -30,5 +36,5 @@ void Receiver::run() {
             }
         }
     }
-
+    printf("Receiver thread edned (%d packets handled)\n", packetCount);
 }

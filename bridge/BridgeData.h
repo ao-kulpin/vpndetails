@@ -6,8 +6,11 @@
 
 #include <QHostAddress>
 
-#include "wintunlib.h"
+#include <queue>
+#include <memory>
 
+#include "wintunlib.h"
+#include "protocol.h"
 
 class BridgeData {
 public:
@@ -20,6 +23,12 @@ public:
     WINTUN_SESSION_HANDLE session       {nullptr};
     int ringSize                        {0x400000};
     int defaultMetricAdd                {100};
+
+    HANDLE quitEvent                    {0};
+    bool haveQuit                       {false};
+
+    using QueueElemType =              std::unique_ptr<IPPacket>;
+    std::queue<QueueElemType>          virtReceiveQueue;
 };
 
 extern BridgeData bdata;

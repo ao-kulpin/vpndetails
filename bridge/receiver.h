@@ -3,12 +3,13 @@
 
 #include <QThread>
 
-class Receiver : QThread
+class VirtReceiver : public QThread
 {
     Q_OBJECT
-//////public:
-    Receiver();
     void run() override;
+
+public:
+    VirtReceiver();
 };
 
 #endif // RECEIVER_H

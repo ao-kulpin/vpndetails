@@ -15,6 +15,7 @@
 #include "bridgedata.h"
 #include "killer.h"
 #include "routetable.h"
+#include "receiver.h"
 
 BridgeData bdata; // common data of the application
 
@@ -22,6 +23,8 @@ WinTunLib* WinTunLib::mInstance = nullptr;
 
 void signalHandler(int signum) {
     printf("\nTerminated by user\n");
+    bdata.haveQuit = true;
+    SetEvent(bdata.quitEvent);
     QCoreApplication::quit();
 }
 
@@ -127,6 +130,25 @@ int main(int argc, char *argv[])
         }
     });
 //#endif
+
+    bdata.quitEvent = CreateEvent(0, TRUE, FALSE, 0);
+    if (!bdata.quitEvent) {
+        printf("Can't create quitEvent\n");
+        return 1;
+    }
+
+    Killer qek ( [&] {
+        CloseHandle(bdata.quitEvent);
+    });
+
+    VirtReceiver vreceiver;
+    vreceiver.start();
+
+    Killer vrck ( [&] {
+        printf("Virtual receiver is ... ");
+        vreceiver.wait();
+        printf("ended\n");
+    });
 
     printf("Waiting for Ctrl-C ...\n");
 
