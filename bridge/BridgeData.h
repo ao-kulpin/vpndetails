@@ -5,6 +5,8 @@
 //#include <windows.h>   // Затем подключаем windows.h
 
 #include <QHostAddress>
+#include <QMutex>
+#include <QWaitCondition>
 
 #include <queue>
 #include <memory>
@@ -29,6 +31,8 @@ public:
 
     using QueueElemType =              std::unique_ptr<IPPacket>;
     std::queue<QueueElemType>          virtReceiveQueue;
+    QMutex                             virtReceiveMutex;
+    QWaitCondition                     virtReceiveWC;
 };
 
 extern BridgeData bdata;

@@ -12,4 +12,13 @@ public:
     VirtReceiver();
 };
 
+class RealSender : public QThread
+{
+    Q_OBJECT
+    void run() override;
+
+public:
+    bool openAdapter();
+};
+
 #endif // RECEIVER_H

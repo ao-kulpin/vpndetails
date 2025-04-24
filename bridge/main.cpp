@@ -145,10 +145,29 @@ int main(int argc, char *argv[])
     vreceiver.start();
 
     Killer vrck ( [&] {
-        printf("Virtual receiver is ... ");
         vreceiver.wait();
-        printf("ended\n");
+        printf("Virtual receiver is ended\n");
     });
+
+    RealSender rsender;
+    if (!rsender.openAdapter()) {
+        printf("Can't open real adapter\n");
+        a.exit(1);
+        return 1;
+    }
+
+    rsender.start();
+
+    Killer rsk ( [&] {
+        rsender.wait();
+        printf("Real sender is ended\n");
+    });
+
+    WSADATA wsadata;
+    int rc = WSAStartup(MAKEWORD(2,2), &wsadata);
+    if (rc) {
+        printf("WSAStartup fails: %d", rc);
+    }
 
     printf("Waiting for Ctrl-C ...\n");
 
