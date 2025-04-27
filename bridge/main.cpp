@@ -16,10 +16,12 @@
 #include "killer.h"
 #include "routetable.h"
 #include "receiver.h"
+#include "adapteraddr.h"
 
 BridgeData bdata; // common data of the application
 
-WinTunLib* WinTunLib::mInstance = nullptr;
+WinTunLib*                            WinTunLib::mInstance = nullptr;
+std::unique_ptr<IP_ADAPTER_ADDRESSES> AdapterAddr::mAdaptList;
 
 void signalHandler(int signum) {
     printf("\nTerminated by user\n");
@@ -59,6 +61,13 @@ int main(int argc, char *argv[])
         bdata.realAdapterIP = QHostAddress(argv[1]);
 
     printf("Bridge IP: %s\n", bdata.realAdapterIP.toString().toStdString().c_str());
+
+    WSADATA wsadata;
+    int rc = WSAStartup(MAKEWORD(2,2), &wsadata);
+    if (rc) {
+        printf("WSAStartup fails: %d", rc);
+        return 1;
+    }
 
     if(WinTunLib::isLoaded())
         printf("wintun.dll is loaded\n");
@@ -142,7 +151,6 @@ int main(int argc, char *argv[])
     });
 
     VirtReceiver vreceiver;
-    vreceiver.start();
 
     Killer vrck ( [&] {
         vreceiver.wait();
@@ -150,28 +158,31 @@ int main(int argc, char *argv[])
     });
 
     RealSender rsender;
-    if (!rsender.openAdapter()) {
+//#if 0
+    if (rsender.openAdapter())
+        printf("Real adapter is open\n");
+    else {
         printf("Can't open real adapter\n");
         a.exit(1);
         return 1;
     }
-
-    rsender.start();
+//#endif
 
     Killer rsk ( [&] {
         rsender.wait();
         printf("Real sender is ended\n");
     });
 
-    WSADATA wsadata;
-    int rc = WSAStartup(MAKEWORD(2,2), &wsadata);
-    if (rc) {
-        printf("WSAStartup fails: %d", rc);
-    }
+//    for(int i =0; i < 20; ++i)
+//        printf("Waiting for Ctrl-C ... %d\n", i);
+ //   fflush(stdout);
 
     printf("Waiting for Ctrl-C ...\n");
 
     std::signal(SIGINT, signalHandler);
+
+    vreceiver.start();
+    rsender.start();
 
     return a.exec();
 }

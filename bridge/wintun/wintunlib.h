@@ -1,7 +1,6 @@
 #ifndef WINTUNLIB_H
 #define WINTUNLIB_H
 
-//////#include <winsock2.h>
 #include "wintun.h"
 
 class WinTunLib {
@@ -106,7 +105,7 @@ private:
     WinTunLib* getInstance();
 
     WinTunLib();
-public:
+/////////public:
     static WinTunLib *mInstance;
 };
 
