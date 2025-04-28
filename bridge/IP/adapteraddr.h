@@ -13,7 +13,10 @@ public:
     static
     bool getMacAddress(IPAddr destIP, u_char macAddres[]);
     static
-    bool getGateway(IPAddr ip, IPAddr *gatewayip);
+    bool getGatewayMacAddress(IPAddr _destIP, u_char _macAddress[]);
+
+    static
+    bool getGatewayIP(IPAddr ip, IPAddr *gatewayIP);
 
 private:
     static

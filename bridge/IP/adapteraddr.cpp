@@ -21,13 +21,25 @@ bool AdapterAddr::getMacAddress(IPAddr destIP, u_char macAddress[]) {
     return false;
 }
 
-bool AdapterAddr::getGateway(IPAddr adaptIp, IPAddr *gatewayIp) {
+bool AdapterAddr::getGatewayMacAddress(IPAddr _destIP, u_char _macAddress[]) {
+    ULONG macAddr[2] = { 0 };
+    ULONG phyAddrLen = 6;  /* default to length of six bytes */
+
+    //Send an arp packet
+    if (SendARP(_destIP , 0, macAddr, &phyAddrLen) != NO_ERROR || phyAddrLen != 6)
+        return false;
+
+    memcpy(_macAddress, macAddr, 6);
+    return true;
+}
+
+bool AdapterAddr::getGatewayIP(IPAddr adaptIp, IPAddr *gatewayIP) {
     for (auto* adapt = getAdapts(); adapt; adapt = adapt->Next) {
-        auto* unic = adapt->FirstUnicastAddress;
-        ULONG ip4 = ((sockaddr_in*) unic->Address.lpSockaddr)->sin_addr.S_un.S_addr;
+        auto*  unic = adapt->FirstUnicastAddress;
+        IPAddr ip4 = ((sockaddr_in*) unic->Address.lpSockaddr)->sin_addr.S_un.S_addr;
 
         if (unic->Address.lpSockaddr->sa_family == AF_INET && adaptIp == ip4 && adapt->FirstGatewayAddress) {
-            *gatewayIp = ((sockaddr_in*) adapt->FirstGatewayAddress->Address.lpSockaddr)->sin_addr.S_un.S_addr;
+            *gatewayIP = ((sockaddr_in*) adapt->FirstGatewayAddress->Address.lpSockaddr)->sin_addr.S_un.S_addr;
             return true;
         }
     }
@@ -45,7 +57,8 @@ IP_ADAPTER_ADDRESSES* AdapterAddr::getAdapts() {
         }
 
       mAdaptList.reset(reinterpret_cast<IP_ADAPTER_ADDRESSES*> (new u_char[outBufLen]));
-      if (GetAdaptersAddresses(AF_UNSPEC, GAA_FLAG_INCLUDE_GATEWAYS, NULL, mAdaptList.get(), &outBufLen) != NO_ERROR) {
+      if (GetAdaptersAddresses(AF_UNSPEC, GAA_FLAG_INCLUDE_GATEWAYS,
+                               NULL, mAdaptList.get(), &outBufLen) != NO_ERROR) {
 //////////          printf("+++ GetAdaptersAddresses fails 2\n");
           mAdaptList.reset(nullptr);
           return nullptr;

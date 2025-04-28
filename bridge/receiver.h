@@ -25,12 +25,14 @@ class RealSender : public QThread
     void run() override;
 
 public:
+    ~RealSender()             { closeAdapter(); }
     bool openAdapter();
+    void closeAdapter();
 
-    IPAddr  mGatewayIp;
-    u_char  mAdaptMac[6]   = { 0 };
+    IPAddr  mGatewayIP     = 0;
+    u_char  mAdaptMac  [6] = { 0 };
     u_char  mGatewayMac[6] = { 0 };
-    pcap_t* mPcapHandle     = nullptr;
+    pcap_t* mPcapHandle    = nullptr;
 };
 
 #endif // RECEIVER_H

@@ -121,7 +121,6 @@ int main(int argc, char *argv[])
         printf("Session is ended\n");
     });
 
-// #if 0
     RouteTable rtable;
 
     if (rtable.updateDefaultRoute())
@@ -138,7 +137,6 @@ int main(int argc, char *argv[])
             printf("Can't restore the route table\n");
         }
     });
-//#endif
 
     bdata.quitEvent = CreateEvent(0, TRUE, FALSE, 0);
     if (!bdata.quitEvent) {
@@ -158,7 +156,6 @@ int main(int argc, char *argv[])
     });
 
     RealSender rsender;
-//#if 0
     if (rsender.openAdapter())
         printf("Real adapter is open\n");
     else {
@@ -166,18 +163,15 @@ int main(int argc, char *argv[])
         a.exit(1);
         return 1;
     }
-//#endif
 
     Killer rsk ( [&] {
         rsender.wait();
+        rsender.closeAdapter();
         printf("Real sender is ended\n");
     });
 
-//    for(int i =0; i < 20; ++i)
-//        printf("Waiting for Ctrl-C ... %d\n", i);
- //   fflush(stdout);
 
-    printf("Waiting for Ctrl-C ...\n");
+    printf("Waiting for Ctrl-C ...\n\n");
 
     std::signal(SIGINT, signalHandler);
 
