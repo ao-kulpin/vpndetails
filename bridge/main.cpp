@@ -1,7 +1,6 @@
 #include <QCoreApplication>
 #include <QDebug>
 #include <QHostAddress>
-#include <QtEndian>
 #include <stdio.h>
 
 #include <csignal>
@@ -39,7 +38,7 @@ setIPAddress () {
     WinTunLib::getAdapterLUID(virtAdapter, &AddressRow.InterfaceLuid);
     AddressRow.Address.Ipv4.sin_family = AF_INET;
     AddressRow.Address.Ipv4.sin_addr.S_un.S_addr =
-                qToBigEndian(bdata.virtAdapterIP.toIPv4Address());
+                htonl(bdata.virtAdapterIP.toIPv4Address());
     AddressRow.OnLinkPrefixLength = bdata.virtAdapterMaskLen;
     AddressRow.DadState = IpDadStatePreferred;
     auto LastError = CreateUnicastIpAddressEntry(&AddressRow);

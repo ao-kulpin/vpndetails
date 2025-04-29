@@ -5,7 +5,6 @@
 
 #include <QMutexLocker>
 #include <iphlpapi.h>
-#include <QtEndian>
 
 VirtReceiver::VirtReceiver() {}
 
@@ -80,6 +79,16 @@ void RealSender::run() {
 
         if (++packetCount % 50 == 0)
             printf("%d packets sent\n", packetCount);
+
+        vrl.unlock();
+
+        updatePacket(packet);
+        static int fail = 0;
+        static int succ = 0;
+        if (!send(packet))
+            printf ("+++ send() fails %d\n", ++fail);
+        else
+            printf ("+++ send() succedes %d\n", ++succ);
     }
 
     printf("Sender thread edned (%d packets handled)\n", packetCount);
@@ -104,7 +113,7 @@ bool RealSender::openAdapter() {
         pcap_freealldevs(alldevs);
     });
 
-    const IPAddr   realIp    = qToBigEndian(bdata.realAdapterIP.toIPv4Address());
+    const IPAddr   realIp    = htonl(bdata.realAdapterIP.toIPv4Address());
     const QString realIpStr = bdata.realAdapterIP.toString();
     /////// printf("+++ realIp: %s %08lX\n", realIpStr.toUtf8().constData(), realIp);
 
@@ -170,5 +179,22 @@ bool RealSender::send(const IPPacket& _packet) {
 
     return pcap_sendpacket(mPcapHandle, eframe.data(), eframe.size()) == 0;
 }
+
+void RealSender::updatePacket(IPPacket& _packet) {
+    IPHeader* header = _packet.header();
+
+    if (header->srcAddr == htonl(bdata.virtAdapterIP.toIPv4Address())) {
+        header->srcAddr = htonl(bdata.realAdapterIP.toIPv4Address());
+        header->calcCheckSum();
+    }
+    else {
+        char src_s[INET_ADDRSTRLEN];
+        char dest_s[INET_ADDRSTRLEN];
+        inet_ntop(AF_INET, (void*) &header->srcAddr, src_s, sizeof src_s);
+        inet_ntop(AF_INET, (void*) &header->destAddr, dest_s, sizeof dest_s);
+        printf("+++ Invalid source IP: %s -> %s (%d)\n", src_s, dest_s, header->proto);
+    }
+}
+
 
 

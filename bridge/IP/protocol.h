@@ -15,8 +15,8 @@ struct IPHeader{
     u_char	ttl;			// Time to live
     u_char	proto;			// Protocol
     u_short checksum;		// Header checksum
-    u_int	saddr;          // Source address
-    u_int	daddr;          // Destination address
+    u_int	srcAddr;        // Source address
+    u_int	destAddr;       // Destination address
     u_int	op_pad;			// Option + Padding
 
     void    calcCheckSum();

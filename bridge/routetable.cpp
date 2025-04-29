@@ -5,12 +5,10 @@
 #include "routetable.h"
 #include "BridgeData.h"
 
-#include <QtEndian>
-
 #include <stdio.h>
 
 RouteTable::RouteTable() :
-    mVirtAdapIndex {getIndex(qToBigEndian(bdata.virtAdapterIP.toIPv4Address()))}
+    mVirtAdapIndex {getIndex(htonl(bdata.virtAdapterIP.toIPv4Address()))}
 {}
 
 RouteTable::~RouteTable() {
