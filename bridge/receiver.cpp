@@ -106,7 +106,7 @@ bool RealSender::openAdapter() {
 
     const IPAddr   realIp    = qToBigEndian(bdata.realAdapterIP.toIPv4Address());
     const QString realIpStr = bdata.realAdapterIP.toString();
-    printf("+++ realIp: %s %08lX\n", realIpStr.toUtf8().constData(), realIp);
+    /////// printf("+++ realIp: %s %08lX\n", realIpStr.toUtf8().constData(), realIp);
 
     QString devName;
     bool found = false;
@@ -128,6 +128,13 @@ bool RealSender::openAdapter() {
 
                 auto& gm = mGatewayMac;
                 ///////printf("+++ gateway mac: %02x %02x %02x %02x %02x %02x\n", gm[0], gm[1], gm[2], gm[3], gm[4], gm[5]);
+
+                // Fill Ethernet header
+
+                memcpy(mEthHeader.destMac, mGatewayMac, sizeof mGatewayMac);
+                memcpy(mEthHeader.srcMac, mAdaptMac, sizeof mAdaptMac);
+                mEthHeader.type = htons(EthernetHeader::TypeIP4);
+
                 found = true;
             }
         }
@@ -157,4 +164,11 @@ void RealSender::closeAdapter() {
         mPcapHandle = nullptr;
     }
 }
+
+bool RealSender::send(const IPPacket& _packet) {
+    EthernetFrame eframe(mEthHeader, _packet);
+
+    return pcap_sendpacket(mPcapHandle, eframe.data(), eframe.size()) == 0;
+}
+
 
