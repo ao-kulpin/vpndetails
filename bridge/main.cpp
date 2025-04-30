@@ -169,6 +169,17 @@ int main(int argc, char *argv[])
         printf("Real sender is ended\n");
     });
 
+    RealReceiver rreceiver;
+    Killer rrck ([&]{
+        rreceiver.wait();
+        printf("Real receiver is ended\n");
+    });
+
+    VirtSender vsender;
+    Killer vsk ( [&]{
+        vsender.wait();
+        printf("Virtual sender is ended\n");
+    });
 
     printf("Waiting for Ctrl-C ...\n\n");
 
@@ -176,6 +187,8 @@ int main(int argc, char *argv[])
 
     vreceiver.start();
     rsender.start();
+    rreceiver.start();
+    vsender.start();
 
     return a.exec();
 }

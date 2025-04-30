@@ -110,13 +110,13 @@ int main(int argc, char *argv[])
     struct in_addr iface_addr;
     inet_pton(AF_INET, "192.168.0.102", &iface_addr); // Замените на ваш IP-адрес интерфейса
     DWORD index = 0;
-#if 0
+//////////#if 0
     if (setsockopt(sockfd, IPPROTO_IP, IP_UNICAST_IF,
                    (const char*) &iface_addr, sizeof iface_addr)){
         printf("setsockopt fails %d\n", WSAGetLastError());
         return 1;
     }
-#endif
+//#endif
 
     struct sockaddr_in dest;
 
@@ -144,6 +144,23 @@ int main(int argc, char *argv[])
         WSACleanup();
         return 1;
     }
+
+    struct sockaddr_in addr;
+    // addr.sin_family = AF_INET;
+    //addr.sin_addr.s_addr = INADDR_ANY; // Принимаем соединения на всех интерфейсах
+    //addr.sin_port = htons(12345); // Привязываем к порту 12345
+
+    int addr_len = sizeof(addr);
+    if (getsockname(sockfd, (struct sockaddr*)&addr, &addr_len)
+        == SOCKET_ERROR) {
+        printf("getsockname() failed: %d\n", WSAGetLastError());
+        closesocket(sockfd);
+        WSACleanup();
+        return 1;
+    }
+
+    printf("Socket is bound to port: %d\n", ntohs(addr.sin_port));
+
 
     struct sockaddr_in from;
 

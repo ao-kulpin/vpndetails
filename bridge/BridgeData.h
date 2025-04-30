@@ -33,6 +33,10 @@ public:
     std::queue<QueueElemType>          virtReceiveQueue;
     QMutex                             virtReceiveMutex;
     QWaitCondition                     virtReceiveWC;
+
+    std::queue<QueueElemType>          realReceiveQueue;
+    QMutex                             realReceiveMutex;
+    QWaitCondition                     realReceiveWC;
 };
 
 extern BridgeData bdata;

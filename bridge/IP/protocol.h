@@ -9,7 +9,7 @@
 struct IPHeader{
     u_char	ver_ihl;		// Version (4 bits) + Internet header length (4 bits)
     u_char	tos;			// Type of service
-    u_short tlen;			// Total length
+    u_short totalLen;		// Total length
     u_short identification; // Identification
     u_short flags_fo;		// Flags (3 bits) + Fragment offset (13 bits)
     u_char	ttl;			// Time to live
