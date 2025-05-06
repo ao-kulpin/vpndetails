@@ -17,8 +17,18 @@ struct IPHeader{
     u_short checksum;		// Header checksum
     u_int	srcAddr;        // Source address
     u_int	destAddr;       // Destination address
-    u_int	op_pad;			// Option + Padding
+    /////// u_int	op_pad;			// Option + Padding
 
+    void    calcCheckSum();
+    unsigned size ()        { return (ver_ihl & 0xF) * 4; }
+};
+
+struct UDPHeader
+{
+    u_short sport;			// Source port
+    u_short dport;			// Destination port
+    u_short len;			// Datagram length
+    u_short checksum;		// Checksum
     void    calcCheckSum();
 };
 
@@ -34,6 +44,8 @@ public:
                data() const { return mData.data(); }
     u_char*    data()       { return mData.data(); }
     IPHeader*  header()     { return reinterpret_cast<IPHeader*>(mData.data()); }
+    UDPHeader* udpHeader()  { return reinterpret_cast<UDPHeader*>(
+                                        mData.data() + header()->size()); }
 
 private:
     QVector<u_char> mData;

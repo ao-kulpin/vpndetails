@@ -110,13 +110,13 @@ int main(int argc, char *argv[])
     struct in_addr iface_addr;
     inet_pton(AF_INET, "192.168.0.102", &iface_addr); // Замените на ваш IP-адрес интерфейса
     DWORD index = 0;
-//////////#if 0
+#if 0
     if (setsockopt(sockfd, IPPROTO_IP, IP_UNICAST_IF,
                    (const char*) &iface_addr, sizeof iface_addr)){
         printf("setsockopt fails %d\n", WSAGetLastError());
         return 1;
     }
-//#endif
+#endif
 
     struct sockaddr_in dest;
 

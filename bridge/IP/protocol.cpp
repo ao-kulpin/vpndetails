@@ -6,10 +6,10 @@ u_short calcCheckSum(void *b, int len) {
     unsigned int sum = 0;
 
     for (sum = 0; len > 1; len -= 2)
-        sum += *buf++;
+        sum += ntohs(*buf++);
 
     if (len == 1)
-        sum += *(unsigned char *)buf;
+        sum += ntohs(*(unsigned char*) buf);
 
     sum = (sum >> 16) + (sum & 0xFFFF);
     sum += (sum >> 16);
@@ -18,7 +18,12 @@ u_short calcCheckSum(void *b, int len) {
 
 void IPHeader::calcCheckSum() {
     checksum = 0;
-    checksum = ::calcCheckSum(this, (ver_ihl & 0xF) * 4);
+    checksum = htons(::calcCheckSum(this, (ver_ihl & 0xF) * 4));
+}
+
+void UDPHeader::calcCheckSum() {
+    checksum = 0;
+    checksum = htons(::calcCheckSum(this, ntohs(len)));
 }
 
 IPPacket::IPPacket(const u_char* _data, unsigned _size) :

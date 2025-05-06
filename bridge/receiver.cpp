@@ -197,6 +197,16 @@ void RealSender::updatePacket(IPPacket& _packet) {
 
     if (header->srcAddr == htonl(bdata.virtAdapterIP.toIPv4Address())) {
         header->srcAddr = htonl(bdata.realAdapterIP.toIPv4Address());
+        if (header->proto == 17) {
+            auto* udp = _packet.udpHeader();
+            if (udp->dport == htons(53)) {
+                printf("+++ udp->calcCheckSum() port: %d len: %d hs: %d\n", ntohs(udp->sport), ntohs(udp->len), header->size());
+                /////// udp->sport = htons(63780);
+                int cs = ntohs(udp->checksum);
+                //////udp->calcCheckSum();
+                printf("+++ checkSum %04x -> %04x\n", cs, ntohs(udp->checksum));/////////
+            }
+        }
         header->calcCheckSum();
         ////////// printf("+++ Good IP: %s\n", buf);
     }
@@ -227,7 +237,7 @@ void RealReceiver::pcapHandler(const pcap_pkthdr *header, const u_char *pkt_data
     if (++mPacketCount % 50 == 0)
         printf("%d real packets received\n", mPacketCount);
 
-    bdata.realReceiveQueue.push(std::make_unique<IPPacket>((const u_char*) iph, iph->totalLen));
+    bdata.realReceiveQueue.push(std::make_unique<IPPacket>((const u_char*) iph, ntohs(iph->totalLen)));
     bdata.realReceiveWC.wakeAll();
 }
 
