@@ -1,29 +1,70 @@
 #include "protocol.h"
 
-static
-u_short calcCheckSum(void *b, int len) {
-    u_short *buf = reinterpret_cast<u_short*>(b);
-    unsigned int sum = 0;
+struct UDPPseudoHeader{
+    u_int   srcAddr;
+    u_int   destAddr;
+    u_char  zero = 0;       // always 0
+    u_char	proto = 17;		// Protocol
+    u_short len;			// Datagram length
+};
 
-    for (sum = 0; len > 1; len -= 2)
-        sum += ntohs(*buf++);
+void CheckSumCalculator::put(const void* _segment, unsigned _size) {
+    if (mKeepLast) {
+        const u_char* byteSeg = reinterpret_cast<const u_char*>(_segment);
+        u_short first = (mLastByte << 8) | *byteSeg;
+        mSum += first;
+        mKeepLast = false;
+        _segment = byteSeg + 1;
+        --_size;
+    }
 
-    if (len == 1)
-        sum += ntohs(*(unsigned char*) buf);
+    const u_short *ptr = reinterpret_cast<const u_short*>(_segment);
 
-    sum = (sum >> 16) + (sum & 0xFFFF);
-    sum += (sum >> 16);
-    return ~sum;
+    for (; _size > 1; _size -= sizeof(u_short))
+        mSum += ntohs(*ptr++);
+
+    if (_size == 1) {
+        mLastByte = *reinterpret_cast<const u_char*>(ptr);
+        mKeepLast = true;
+    }
+}
+
+u_short CheckSumCalculator::getSum() {
+    if (mKeepLast) {
+        mSum += ntohs(mLastByte);
+        mKeepLast = false;
+    }
+
+    u_int sum = mSum;
+
+    while(sum >> 16)
+        sum = (sum & 0xFFFF) + (sum >> 16);
+
+    return static_cast<u_short>(~sum);
 }
 
 void IPHeader::calcCheckSum() {
     checksum = 0;
-    checksum = htons(::calcCheckSum(this, (ver_ihl & 0xF) * 4));
+    CheckSumCalculator calc;
+    calc.put(this, size());
+    checksum = htons(calc.getSum());
 }
 
-void UDPHeader::calcCheckSum() {
+void UDPHeader::calcCheckSum(const IPHeader& ipHeader) {
     checksum = 0;
-    checksum = htons(::calcCheckSum(this, ntohs(len)));
+
+    UDPPseudoHeader uph;
+    uph.srcAddr     = ipHeader.srcAddr;
+    uph.destAddr    = ipHeader.destAddr;
+    uph.zero        = 0;
+    uph.proto       = ipHeader.proto;
+    uph.len         = len;
+
+    CheckSumCalculator calc;
+    calc.put(&uph, sizeof uph);
+    calc.put(this, ntohs(len));
+
+    checksum = htons(calc.getSum());
 }
 
 IPPacket::IPPacket(const u_char* _data, unsigned _size) :

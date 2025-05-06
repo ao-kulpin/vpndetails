@@ -203,7 +203,7 @@ void RealSender::updatePacket(IPPacket& _packet) {
                 printf("+++ udp->calcCheckSum() port: %d len: %d hs: %d\n", ntohs(udp->sport), ntohs(udp->len), header->size());
                 /////// udp->sport = htons(63780);
                 int cs = ntohs(udp->checksum);
-                //////udp->calcCheckSum();
+                udp->calcCheckSum(*header);
                 printf("+++ checkSum %04x -> %04x\n", cs, ntohs(udp->checksum));/////////
             }
         }

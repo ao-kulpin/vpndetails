@@ -19,7 +19,7 @@ struct IPHeader{
     u_int	destAddr;       // Destination address
     /////// u_int	op_pad;			// Option + Padding
 
-    void    calcCheckSum();
+    void     calcCheckSum();
     unsigned size ()        { return (ver_ihl & 0xF) * 4; }
 };
 
@@ -29,7 +29,7 @@ struct UDPHeader
     u_short dport;			// Destination port
     u_short len;			// Datagram length
     u_short checksum;		// Checksum
-    void    calcCheckSum();
+    void    calcCheckSum(const IPHeader& ipHeader);
 };
 
 class IPPacket {
@@ -93,6 +93,16 @@ private:
     unsigned mEthSize = 0;
     unsigned mIPPSize = 0;
     QVector<u_char> mData;
+};
+
+class CheckSumCalculator {
+public:
+    void        put(const void* _segment, unsigned _size);
+    u_short     getSum();
+private:
+    u_int       mSum = 0;
+    u_short     mLastByte = 0;
+    bool        mKeepLast = false;
 };
 
 #endif // PROTOCOL_H
