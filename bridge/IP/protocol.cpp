@@ -1,6 +1,6 @@
 #include "protocol.h"
 
-struct UDPPseudoHeader{
+struct PPseudoHeader{
     u_int   srcAddr;
     u_int   destAddr;
     u_char  zero = 0;       // always 0
@@ -43,17 +43,17 @@ u_short CheckSumCalculator::getSum() {
     return static_cast<u_short>(~sum);
 }
 
-void IPHeader::calcCheckSum() {
+void IPHeader::updateChecksum() {
     checksum = 0;
     CheckSumCalculator calc;
     calc.put(this, size());
     checksum = htons(calc.getSum());
 }
 
-void UDPHeader::calcCheckSum(const IPHeader& ipHeader) {
+void UDPHeader::updateChecksum(const IPHeader& ipHeader) {
     checksum = 0;
 
-    UDPPseudoHeader uph;
+    PPseudoHeader uph;
     uph.srcAddr     = ipHeader.srcAddr;
     uph.destAddr    = ipHeader.destAddr;
     uph.zero        = 0;
@@ -66,6 +66,26 @@ void UDPHeader::calcCheckSum(const IPHeader& ipHeader) {
 
     checksum = htons(calc.getSum());
 }
+
+void TCPHeader::updateChecksum(const IPHeader& ipHeader) {
+    checksum = 0;
+
+    u_int tcpSize = ntohs(ipHeader.totalLen) - ipHeader.size();
+
+    PPseudoHeader uph;
+    uph.srcAddr     = ipHeader.srcAddr;
+    uph.destAddr    = ipHeader.destAddr;
+    uph.zero        = 0;
+    uph.proto       = ipHeader.proto;
+    uph.len         = htons(tcpSize);
+
+    CheckSumCalculator calc;
+    calc.put(&uph, sizeof uph);
+    calc.put(this, tcpSize);
+
+    checksum = htons(calc.getSum());
+}
+
 
 IPPacket::IPPacket(const u_char* _data, unsigned _size) :
     mData(_size)
@@ -81,6 +101,24 @@ IPPacket& IPPacket::operator= (const IPPacket& _ipp) {
     mData = _ipp.mData;
     return *this;
 }
+
+void IPPacket::updateChecksum() {
+    auto* iph = header();
+    iph->updateChecksum();
+    switch (iph->proto) {
+    case IPPROTO_UDP:
+        udpHeader()->updateChecksum(*iph);
+        break;
+
+    case IPPROTO_TCP:
+        tcpHeader()->updateChecksum(*iph);
+        break;
+
+    default:
+        break;
+    }
+}
+
 
 unsigned EthernetHeader::size() const {
     if (ntohs(type) == QTag) {

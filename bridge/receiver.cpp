@@ -197,17 +197,19 @@ void RealSender::updatePacket(IPPacket& _packet) {
 
     if (header->srcAddr == htonl(bdata.virtAdapterIP.toIPv4Address())) {
         header->srcAddr = htonl(bdata.realAdapterIP.toIPv4Address());
-        if (header->proto == 17) {
+        if (header->proto == IPPROTO_UDP) {
             auto* udp = _packet.udpHeader();
             if (udp->dport == htons(53)) {
                 printf("+++ udp->calcCheckSum() port: %d len: %d hs: %d\n", ntohs(udp->sport), ntohs(udp->len), header->size());
                 /////// udp->sport = htons(63780);
                 int cs = ntohs(udp->checksum);
-                udp->calcCheckSum(*header);
+                ///udp->calcCheckSum(*header);
                 printf("+++ checkSum %04x -> %04x\n", cs, ntohs(udp->checksum));/////////
             }
         }
-        header->calcCheckSum();
+        /////header->calcCheckSum();
+        _packet.updateChecksum();
+
         ////////// printf("+++ Good IP: %s\n", buf);
     }
     else {
@@ -335,7 +337,7 @@ bool VirtSender::updatePacket(IPPacket& _packet) {
 
     if (header->destAddr == htonl(bdata.realAdapterIP.toIPv4Address())) {
         header->destAddr = htonl(bdata.virtAdapterIP.toIPv4Address());
-        header->calcCheckSum();
+        _packet.updateChecksum();
         printf("+++ VirtSender: Good destination IP: %s\n", buf);
         return true;
     }

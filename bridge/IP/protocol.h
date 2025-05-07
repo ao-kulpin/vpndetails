@@ -3,6 +3,7 @@
 
 #include <winsock2.h>
 #include <windows.h>
+//////////#include <ws2tcpip.h>
 
 #include <QVector>
 
@@ -19,17 +20,40 @@ struct IPHeader{
     u_int	destAddr;       // Destination address
     /////// u_int	op_pad;			// Option + Padding
 
-    void     calcCheckSum();
-    unsigned size ()        { return (ver_ihl & 0xF) * 4; }
+    void     updateChecksum();
+    unsigned size () const  { return (ver_ihl & 0xF) * 4; }
 };
 
-struct UDPHeader
-{
+struct UDPHeader {
     u_short sport;			// Source port
     u_short dport;			// Destination port
     u_short len;			// Datagram length
     u_short checksum;		// Checksum
-    void    calcCheckSum(const IPHeader& ipHeader);
+    void    updateChecksum(const IPHeader& ipHeader);
+};
+
+struct TCPHeader {
+    u_short  sport;			// Source port
+    u_short  dport;			// Destination port
+    u_int    seq;           // Sequence Number
+    u_int    ackSeq;        // Acknowledgement Number (meaningful when ACK bit set)
+
+    u_char  res:4;         // Reserved (should be zero)
+    u_char  doff:4;         // Data offset
+    u_char  fin:1;          // FIN flag (finished - end of data)
+    u_char  syn:1;          // SYN flag (synchronize - initiate a connection)
+    u_char  rst:1;          // RST flag (reset the connection)
+    u_char  psh:1;          // PSH flag (push - send data immediately)
+    u_char  ack:1;          // ACK flag (acknowledgment of received data)
+    u_char  urg:1;          // URG flag (urgent data)
+    u_char  ece:1;          // ECE flag (ECN-Echo, for congestion control)
+    u_char  cwr:1;          // CWR flag (Congestion Window Reduced)
+
+    u_short window;         //  Window size (size of the receive window)
+    u_short checksum;       // Checksum for error-checking
+    u_short urgPtr;         // Urgent pointer (indicates end of urgent data, if any)
+
+    void    updateChecksum(const IPHeader& ipHeader);
 };
 
 class IPPacket {
@@ -46,6 +70,9 @@ public:
     IPHeader*  header()     { return reinterpret_cast<IPHeader*>(mData.data()); }
     UDPHeader* udpHeader()  { return reinterpret_cast<UDPHeader*>(
                                         mData.data() + header()->size()); }
+    TCPHeader* tcpHeader()  { return reinterpret_cast<TCPHeader*>(
+                                        mData.data() + header()->size()); }
+    void       updateChecksum();
 
 private:
     QVector<u_char> mData;
