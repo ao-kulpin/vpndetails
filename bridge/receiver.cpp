@@ -27,7 +27,7 @@ void VirtReceiver::run() {
                 QMutexLocker vrl (&bdata.virtReceiveMutex);
 
                 if (++packetCount % 50 == 0)
-                    printf("%d packets received\n", packetCount);
+                    printf("VirtReceiver: %d packets received\n", packetCount);
 
                 bdata.virtReceiveQueue.push(std::make_unique<IPPacket>(packet, packetSize));
                 bdata.virtReceiveWC.wakeAll();
@@ -77,21 +77,22 @@ void RealSender::run() {
 
         inputQueue.pop();
 
-        if (++packetCount % 50 == 0)
-            printf("%d packets sent\n", packetCount);
-
         vrl.unlock();
 
-        updatePacket(packet);
+        /////updatePacket(packet);
         static int fail = 0;
         static int succ = 0;
-        if (!send(packet))
-            printf ("+++ send() fails %d\n", ++fail);
-        ///else
-        ///    printf ("+++ send() succedes %d\n", ++succ);
+        if (updatePacket(packet)) {
+            if (send(packet)) {
+                if (++packetCount % 50 == 0)
+                    printf("Real Sender: %d packets sent\n", packetCount);
+                }
+                else
+                    printf ("+++ send() fails %d\n", ++fail);
+        }
     }
 
-    printf("Real Sender thread edned (%d packets handled)\n", packetCount);
+    printf("Real Sender: thread edned (%d packets handled)\n", packetCount);
 }
 
 bool RealSender::openAdapter() {
@@ -190,30 +191,19 @@ void headPrint(IPHeader* header, char* outBuf) {
     sprintf(outBuf, "%s->%s (%d)", src_s, dest_s, header->proto);
 }
 
-void RealSender::updatePacket(IPPacket& _packet) {
+bool RealSender::updatePacket(IPPacket& _packet) {
     IPHeader* header = _packet.header();
     char buf[128];
     headPrint(header, buf);
 
     if (header->srcAddr == htonl(bdata.virtAdapterIP.toIPv4Address())) {
         header->srcAddr = htonl(bdata.realAdapterIP.toIPv4Address());
-        if (header->proto == IPPROTO_UDP) {
-            auto* udp = _packet.udpHeader();
-            if (udp->dport == htons(53)) {
-                printf("+++ udp->calcCheckSum() port: %d len: %d hs: %d\n", ntohs(udp->sport), ntohs(udp->len), header->size());
-                /////// udp->sport = htons(63780);
-                int cs = ntohs(udp->checksum);
-                ///udp->calcCheckSum(*header);
-                printf("+++ checkSum %04x -> %04x\n", cs, ntohs(udp->checksum));/////////
-            }
-        }
-        /////header->calcCheckSum();
         _packet.updateChecksum();
-
-        ////////// printf("+++ Good IP: %s\n", buf);
+        return true;
     }
     else {
         printf("+++ Invalid source IP: %s\n", buf);
+        return false;
     }
 }
 
@@ -237,7 +227,7 @@ void RealReceiver::pcapHandler(const pcap_pkthdr *header, const u_char *pkt_data
     /////printf("+++ RealReceiver::pcapHandler() 3\n");
 
     if (++mPacketCount % 50 == 0)
-        printf("%d real packets received\n", mPacketCount);
+        printf("RealReceiver: %d real received\n", mPacketCount);
 
     bdata.realReceiveQueue.push(std::make_unique<IPPacket>((const u_char*) iph, ntohs(iph->totalLen)));
     bdata.realReceiveWC.wakeAll();
@@ -273,7 +263,7 @@ printf("+++ RealReceiver starts\n");
                 mPcapHandle = pcap_open_live(dev->name,         // name of the device
                                           65536,			// portion of the packet to capture.
                                                             // 65536 grants that the whole packet will be captured on all the MACs.
-                                          1,				// promiscuous mode (nonzero means promiscuous)
+                                          0,				// promiscuous mode (nonzero means promiscuous)
                                           1000,             // read timeout
                                           errbuf			// error buffer
                                           );
@@ -321,10 +311,13 @@ void VirtSender::run() {
         vsl.unlock();
 
         if (updatePacket(packet)) {
-            send(packet);
-
-            if (++packetCount % 50 == 0)
-                printf("%d real packets sent\n", packetCount);
+            if (send(packet)) {
+                if (++packetCount % 50 == 0)
+                    printf("VirtSender: %d real packets sent\n", packetCount);
+            } else {
+                static int failCount = 0;
+                printf ("+++ VirtSender:send() fails %d\n", ++failCount);
+            }
         }
     }
     printf("Virtual Sender thread edned (%d packets handled)\n", packetCount);
@@ -338,11 +331,12 @@ bool VirtSender::updatePacket(IPPacket& _packet) {
     if (header->destAddr == htonl(bdata.realAdapterIP.toIPv4Address())) {
         header->destAddr = htonl(bdata.virtAdapterIP.toIPv4Address());
         _packet.updateChecksum();
-        printf("+++ VirtSender: Good destination IP: %s\n", buf);
+        ///////// printf("+++ VirtSender: Good destination IP: %s\n", buf);
         return true;
     }
     else {
-        ////////printf("+++ VirtSender: Invalid destination IP: %s\n", buf);
+        if (header->srcAddr != htonl(bdata.realAdapterIP.toIPv4Address()))
+            printf("+++ VirtSender: Invalid destination IP: %s\n", buf);
         return false;
     }
 }

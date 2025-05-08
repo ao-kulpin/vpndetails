@@ -31,7 +31,7 @@ public:
     ~RealSender()             { closeAdapter(); }
     bool openAdapter();
     void closeAdapter();
-    void updatePacket(IPPacket& _packet);
+    bool updatePacket(IPPacket& _packet);
     bool send(const IPPacket& _packet);
 
     IPAddr  mGatewayIP     = 0;

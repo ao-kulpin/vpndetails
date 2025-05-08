@@ -10,7 +10,6 @@
 #include <ws2ipdef.h>
 #include <iphlpapi.h>
 
-
 #include "bridgedata.h"
 #include "killer.h"
 #include "routetable.h"
