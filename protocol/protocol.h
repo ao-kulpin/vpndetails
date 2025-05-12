@@ -132,4 +132,59 @@ private:
     bool        mKeepLast = false;
 };
 
+#if 0
+enum class VpnOp: u_short {     // VPN Operations
+    None = 0,                   // no operation
+    ClientHello,                // First request of a client to the server
+    ServerHello                 // First answer from the sever
+};
+#endif
+
+class VpnOp {                       // VPN Operations
+public:
+    static const u_short
+        None = 0,                   // no operation
+        ClientHello = 1,            // First request of a client to the server
+        ServerHello = 2,            // First answer from the sever
+        IPPacket    = 3;            // A packet from/to client/server
+};
+
+class VpnFlag {                     // Flags of VPN Operations
+public:
+    static const u_short
+        None      = 0,              // no flag
+        Encrypted = 1;              // data is encrypted
+};
+
+const u_int VpnSignature = 0x01234567;
+
+struct VpnHeader {
+    u_int       sign  = htonl(VpnSignature);
+    u_short     op    = htons(VpnOp::None);
+    u_short     flags = htons(VpnFlag::None);
+};
+
+struct VpnClientHello {
+    u_int       sign  = htonl(VpnSignature);
+    u_short     op    = htons(VpnOp::ClientHello);
+    u_short     flags = htons(VpnFlag::None);
+};
+
+struct VpnServerHello {
+    u_int       sign       = htonl(VpnSignature);
+    u_short     op         = htons(VpnOp::ServerHello);
+    u_short     flags      = htons(VpnFlag::None);
+    u_int       clientId   = 0;
+    u_int       encryptKey = 0;
+};
+
+struct VpnIPPacket {
+    u_int       sign       = htonl(VpnSignature);
+    u_short     op         = htons(VpnOp::IPPacket);
+    u_short     flags      = htons(VpnFlag::None);
+    u_int       clientId   = 0;
+    uint        dataSize   = 0;
+    u_char      data[0];
+};
+
 #endif // PROTOCOL_H

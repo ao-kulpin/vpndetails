@@ -16,6 +16,9 @@
 #include "receiver.h"
 #include "adapteraddr.h"
 
+#include <QTcpSocket>
+
+
 BridgeData bdata; // common data of the application
 
 WinTunLib*                            WinTunLib::mInstance = nullptr;
