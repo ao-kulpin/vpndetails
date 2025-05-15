@@ -1,6 +1,8 @@
 #ifndef HANDLERS_H
 #define HANDLERS_H
 
+#include <memory>
+
 #include <winsock2.h>
 #include <windows.h>
 
