@@ -1,17 +1,24 @@
 #ifndef HANDLERS_H
 #define HANDLERS_H
 
+#include <winsock2.h>
+#include <windows.h>
+
 #include <QThread>
+#include <QTcpSocket>
 
 class ClientHandler : public QThread
 {
     Q_OBJECT
 public:
-    ClientHandler(qintptr socketDescriptor, QObject *parent = nullptr);
+    ClientHandler(qintptr socketDescriptor, u_int clientID, QObject *parent = nullptr);
 
     void run() override;
 private:
-    qintptr mSocketDescriptor;
+    void onReadyRead();
+    qintptr                     mSocketDescriptor = 0;
+    std::unique_ptr<QTcpSocket> mSocket = nullptr;
+    const u_int                 mClientID = 0;
 };
 
 #endif // HANDLERS_H
