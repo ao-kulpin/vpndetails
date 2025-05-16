@@ -20,7 +20,7 @@ private:
     void onReadyRead();
     qintptr                     mSocketDescriptor = 0;
     std::unique_ptr<QTcpSocket> mSocket = nullptr;
-    const u_int                 mClientID = 0;
+    const u_int                 mClientId = 0;
 };
 
 #endif // HANDLERS_H

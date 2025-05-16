@@ -5,10 +5,13 @@
 
 #include <QTcpSocket>
 
+#include "ClientData.h"
+
 class VPNSocket : public QObject {
     Q_OBJECT
 public:
     VPNSocket(QObject *parent = nullptr);
+    bool connectToServer(const QString& _ip, u_int _port);
 
 private slots:
     void onConnected();
