@@ -10,17 +10,23 @@ ClientHandler::ClientHandler(qintptr socketDescriptor, u_int clientId, QObject *
 {}
 
 void ClientHandler::run() {
+    printf("ClientHandler::run() thread %p\n", QThread::currentThread());
     mSocket.reset (new QTcpSocket());
     if (!mSocket->setSocketDescriptor(mSocketDescriptor)) {
       printf("setSocketDescriptor() failed\n");
       return;
     }
-    connect(mSocket.get(), &QTcpSocket::readyRead, this, &ClientHandler::onReadyRead);
+    connect(mSocket.get(), &QTcpSocket::readyRead, this,
+            &ClientHandler::onReadyRead, Qt::DirectConnection);
+/////    connect(mSocket.get(), &QTcpSocket::readyRead, this, [this]{ this->onReadyRead(); });
 
     exec();
 }
 
 void ClientHandler::onReadyRead() {
+    printf("ClientHandler::onReadyRead()\n");
+    printf("ClientHandler::onReadyRead() thread %p\n", QThread::currentThread());
+//#if 0
     QByteArray clientData = mSocket->readAll();
     char* start  = clientData.data();
     auto* record = start;
@@ -32,17 +38,20 @@ void ClientHandler::onReadyRead() {
             return;
         }
         switch(ntohs(vhead->op)) {
-        case VpnOp::ClientHello:
+        case VpnOp::ClientHello: {
             printf("+++ ClientHello received\n");
             VpnServerHello shello;
             shello.clientId = htonl(mClientId);
-            mSocket->write((const char*) &shello, sizeof shello);
+//////            mSocket->write((const char*) &shello, sizeof shello);
 
             record += sizeof(VpnClientHello);
             break;
-
-
+        }
+        default:
+            printf("*** ClientHandler::onReadyRead() failed with wrong operator: %d\n",
+                   vhead->op);
+            return;
         }
     }
-
+//#endif
 }

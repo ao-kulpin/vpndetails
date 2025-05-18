@@ -37,6 +37,8 @@ private slots:
 int main(int argc, char *argv[])
 {
     QCoreApplication a(argc, argv);
+    printf("main() thread %p\n", QThread::currentThread());
+
 
     if (argc > 1)
         sdata.serverPort = strtol(argv[1], 0, 10);

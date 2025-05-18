@@ -13,7 +13,7 @@ class ClientHandler : public QThread
 {
     Q_OBJECT
 public:
-    ClientHandler(qintptr socketDescriptor, u_int clientID, QObject *parent = nullptr);
+    ClientHandler(qintptr socketDescriptor, u_int clientId, QObject *parent = nullptr);
 
     void run() override;
 private:
