@@ -27,10 +27,8 @@ public:
 private slots:
     void onNewConnection() {
         printf("Client connected...\n");
-        QTcpSocket *clientSocket = nextPendingConnection();
-        ClientHandler *handler = new ClientHandler(clientSocket->socketDescriptor(), ++sdata.clientCount);
-        connect(handler, &QThread::finished, handler, &QObject::deleteLater);
-        handler->start();
+        QTcpSocket *npc = nextPendingConnection();
+        auto *handler = new ClientSocket(npc, ++sdata.clientCount);
     }
 };
 

@@ -24,7 +24,7 @@ void VPNSocket::onConnected() {
     printf("+++ Send ClientHello\n");
 
     VpnClientHello vch;
-    for(int i = 0; i < 100; ++i)
+    for(int i = 0; i < 5; ++i)
         mTcpSocket->write((const char*) &vch, sizeof vch);
 }
 

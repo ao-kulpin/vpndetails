@@ -9,16 +9,14 @@
 #include <QThread>
 #include <QTcpSocket>
 
-class ClientHandler : public QThread
+class ClientSocket : public QObject
 {
     Q_OBJECT
 public:
-    ClientHandler(qintptr socketDescriptor, u_int clientId, QObject *parent = nullptr);
+    ClientSocket(QTcpSocket* _socket, u_int clientId, QObject *parent = nullptr);
 
-    void run() override;
 private:
     void onReadyRead();
-    qintptr                     mSocketDescriptor = 0;
     std::unique_ptr<QTcpSocket> mSocket = nullptr;
     const u_int                 mClientId = 0;
 };

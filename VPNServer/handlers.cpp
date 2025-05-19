@@ -3,27 +3,17 @@
 #include "handlers.h"
 #include "protocol.h"
 
-ClientHandler::ClientHandler(qintptr socketDescriptor, u_int clientId, QObject *parent) :
-    QThread(parent),
-    mClientId(clientId),
-    mSocketDescriptor(socketDescriptor)
-{}
-
-void ClientHandler::run() {
-    printf("ClientHandler::run() thread %p\n", QThread::currentThread());
-    mSocket.reset (new QTcpSocket());
-    if (!mSocket->setSocketDescriptor(mSocketDescriptor)) {
-      printf("setSocketDescriptor() failed\n");
-      return;
-    }
+ClientSocket::ClientSocket(QTcpSocket* _socket, u_int clientId, QObject *parent) :
+    QObject(parent),
+    mSocket(_socket),
+    mClientId(clientId)
+{
     connect(mSocket.get(), &QTcpSocket::readyRead, this,
-            &ClientHandler::onReadyRead, Qt::DirectConnection);
-/////    connect(mSocket.get(), &QTcpSocket::readyRead, this, [this]{ this->onReadyRead(); });
+            &ClientSocket::onReadyRead, Qt::DirectConnection);
 
-    exec();
 }
 
-void ClientHandler::onReadyRead() {
+void ClientSocket::onReadyRead() {
     printf("ClientHandler::onReadyRead()\n");
     printf("ClientHandler::onReadyRead() thread %p\n", QThread::currentThread());
 //#if 0
