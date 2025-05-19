@@ -14,8 +14,7 @@ ClientSocket::ClientSocket(QTcpSocket* _socket, u_int clientId, QObject *parent)
 }
 
 void ClientSocket::onReadyRead() {
-    printf("ClientHandler::onReadyRead()\n");
-    printf("ClientHandler::onReadyRead() thread %p\n", QThread::currentThread());
+    printf("ClientSocket::onReadyRead()\n");
 //#if 0
     QByteArray clientData = mSocket->readAll();
     char* start  = clientData.data();
@@ -30,15 +29,16 @@ void ClientSocket::onReadyRead() {
         switch(ntohs(vhead->op)) {
         case VpnOp::ClientHello: {
             printf("+++ ClientHello received\n");
+
             VpnServerHello shello;
             shello.clientId = htonl(mClientId);
-//////            mSocket->write((const char*) &shello, sizeof shello);
+            mSocket->write((const char*) &shello, sizeof shello);
 
             record += sizeof(VpnClientHello);
             break;
         }
         default:
-            printf("*** ClientHandler::onReadyRead() failed with wrong operator: %d\n",
+            printf("*** ClientSocket::onReadyRead() failed with wrong operator: %d\n",
                    vhead->op);
             return;
         }

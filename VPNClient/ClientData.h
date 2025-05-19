@@ -12,6 +12,7 @@ public:
     QHostAddress serverIP       {"127.0.0.1"};
     u_short      serverPort     { 55555 };
     u_int        connectTime    { 2000 };
+    u_int        clientId       { 0 };
 };
 
 extern ClientData cdata;
