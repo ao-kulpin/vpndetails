@@ -11,7 +11,7 @@ class VPNSocket : public QObject {
     Q_OBJECT
 public:
     VPNSocket(QObject *parent = nullptr);
-    bool connectToServer(const QString& _ip, u_int _port);
+    bool connectToServer(const QString& _ip, u_int _port, const QHostAddress& _adapter);
 
 private slots:
     void onConnected();

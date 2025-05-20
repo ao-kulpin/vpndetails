@@ -13,6 +13,7 @@ public:
     u_short      serverPort     { 55555 };
     u_int        connectTime    { 2000 };
     u_int        clientId       { 0 };
+    QHostAddress realAdapterIP  {"192.168.0.105"};
 };
 
 extern ClientData cdata;
