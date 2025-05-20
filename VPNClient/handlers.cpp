@@ -1,3 +1,5 @@
+#include <QCoreApplication>
+
 #include "handlers.h"
 #include "protocol.h"
 
@@ -56,3 +58,105 @@ void VPNSocket::onReadyRead() {
         }
     }
 }
+
+bool VPNSocket::event(QEvent *event) {
+    if (event->type() == VirtReceiveEvent::EventType) {
+
+        static int eventCount = 0;
+        if (++eventCount % 50 == 0)
+            printf("+++ %d VirtReceiveEvent! %p\n", eventCount, QThread::currentThread());
+
+        sendReceivedPackets();
+        return true;
+    }
+    return QObject::event(event);
+}
+
+void VPNSocket::sendReceivedPackets() {
+    auto& inputQueue = cdata.virtReceiveQueue;
+    auto& mutex = cdata.virtReceiveMutex;
+    auto& haveQuit = cdata.haveQuit;
+
+    if (haveQuit)
+        return;
+
+    while (true) {
+        QMutexLocker vrl (&mutex);
+
+        if (inputQueue.empty())
+            return;
+
+        IPPacket packet (*inputQueue.front());
+        inputQueue.pop();
+
+        vrl.unlock();
+
+        sendPacket(packet);
+    }
+}
+
+void VPNSocket::sendPacket(const IPPacket& _packet) {
+    static VpnIPPacket pattern;
+    const u_int sendSize = sizeof(VpnIPPacket) + _packet.size();
+
+    std::unique_ptr<VpnIPPacket> vip(
+        (VpnIPPacket*) new u_char[sendSize]);
+
+    memcpy(vip.get(), &pattern, sizeof pattern);
+    vip->clientId = htonl(cdata.clientId);
+    vip->dataSize = htonl(_packet.size());
+    memcpy(vip->data, _packet.data(), _packet.size());
+
+    mTcpSocket->write((const char*) vip.get(), sendSize);
+}
+
+
+VirtReceiver::VirtReceiver() {}
+
+void VirtReceiver::run() {
+    HANDLE events[] = {cdata.quitEvent, WinTunLib::getReadWaitEvent(cdata.session)};
+
+    int packetCount = 0;
+    while(!cdata.haveQuit) {
+        DWORD packetSize = 0;
+        BYTE* packet = WinTunLib::receivePacket(cdata.session, &packetSize);
+        if (packet) {
+            {
+                QMutexLocker vrl (&cdata.virtReceiveMutex);
+
+                if (++packetCount % 50 == 0)
+                    printf("VirtReceiver: %d packets received %p\n", packetCount, QThread::currentThread());
+
+                cdata.virtReceiveQueue.push(std::make_unique<IPPacket>(packet, packetSize));
+                ///cdata.virtReceiveWC.wakeAll();
+                wakeSender();
+            }
+
+            WinTunLib::releaseReceivePacket(cdata.session, packet);
+
+        }
+        else {
+            switch (GetLastError())
+            {
+            case ERROR_NO_MORE_ITEMS:
+                DWORD wres = WaitForMultipleObjects(2, events, FALSE, INFINITE);
+                switch (wres) {
+                case WAIT_OBJECT_0:
+                case WAIT_OBJECT_0 + 1:
+                    continue;
+                default:
+                    printf("\nError: Receiver fails\n");
+                    return;
+                }
+            }
+        }
+    }
+    printf("Virtual Receiver thread edned (%d packets handled)\n", packetCount);
+    wakeSender();
+}
+
+void VirtReceiver::wakeSender() {
+    QCoreApplication::postEvent(cdata.vpnSocket, new VirtReceiveEvent);
+}
+
+

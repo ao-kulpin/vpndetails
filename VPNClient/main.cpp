@@ -19,8 +19,8 @@ WinTunLib*                            WinTunLib::mInstance = nullptr;
 
 void signalHandler(int signum) {
     printf("\nTerminated by user\n");
-    //bdata.haveQuit = true;
-    //SetEvent(bdata.quitEvent);
+    cdata.haveQuit = true;
+    SetEvent(cdata.quitEvent);
     QCoreApplication::quit();
 }
 
@@ -50,6 +50,7 @@ setIPAddress () {
 int main(int argc, char *argv[])
 {
     QCoreApplication a(argc, argv);
+    /// printf("VPNClient!!! thread=%p\n", QThread::currentThread());
 
     if (argc > 1)
       cdata.serverIP = QHostAddress(argv[1]);
@@ -138,21 +139,39 @@ int main(int argc, char *argv[])
         }
     });
 
+    cdata.quitEvent = CreateEvent(0, TRUE, FALSE, 0);
+    if (!cdata.quitEvent) {
+        printf("Can't create quitEvent\n");
+        return 1;
+    }
+
+    Killer qek ( [&] {
+        CloseHandle(cdata.quitEvent);
+    });
 
 
 
 
-    VPNSocket socket;
-    if(!socket.connectToServer(cdata.serverIP.toString(), cdata.serverPort, cdata.realAdapterIP)) {
+    //VPNSocket socket;
+    cdata.vpnSocket = new VPNSocket;
+    if(!cdata.vpnSocket->connectToServer(cdata.serverIP.toString(), cdata.serverPort, cdata.realAdapterIP)) {
         printf("Can't connect to server %s:%d\n", cdata.serverIP.toString().toLocal8Bit().constData(), cdata.serverPort);
         return 1;
     }
 
     printf("Connected to server %s:%d\n", cdata.serverIP.toString().toLocal8Bit().constData(), cdata.serverPort);
 
+    VirtReceiver vreceiver;
+    Killer vrck ( [&] {
+        vreceiver.wait();
+        printf("Virtual receiver is ended\n");
+    });
+
+
     printf("Waiting for Ctrl-C ...\n\n");
     std::signal(SIGINT, signalHandler);
 
+    vreceiver.start();
 
     return a.exec();
 }

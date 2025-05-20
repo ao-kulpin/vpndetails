@@ -1,15 +1,25 @@
 #ifndef CLIENTDATA_H
 #define CLIENTDATA_H
 
+#include <memory>
+#include <queue>
+
+
 #include <winsock2.h>  // Сначала подключаем winsock2.h
 #include <windows.h>   // Затем подключаем windows.h
 
 #include <QHostAddress>
+#include <QMutex>
+#include <QWaitCondition>
 
 #include "wintunlib.h"
+#include "protocol.h"
+
+class VPNSocket;
 
 class ClientData {
 public:
+    VPNSocket*   vpnSocket      {nullptr};
     WINTUN_ADAPTER_HANDLE
                  virtAdapter    {nullptr};
     const GUID   adapGuid       { 0xdeadc001, 0xbeef, 0xbabe, { 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef } };
@@ -25,6 +35,15 @@ public:
     QHostAddress virtAdapterIP  {"10.6.7.7"};
     QHostAddress realAdapterIP  {"192.168.0.105"};
     int          virtAdapterMaskLen {24};
+
+    HANDLE       quitEvent      {0};
+    bool         haveQuit       {false};
+
+    using QueueElemType =       std::unique_ptr<IPPacket>;
+    std::queue<QueueElemType>          virtReceiveQueue;
+    QMutex                             virtReceiveMutex;
+    QWaitCondition                     virtReceiveWC;
+
 };
 
 extern ClientData cdata;

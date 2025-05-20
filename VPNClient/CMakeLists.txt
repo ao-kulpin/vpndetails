@@ -13,6 +13,7 @@ find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Core)
 find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Core Network)
 
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../common ${CMAKE_CURRENT_SOURCE_DIR}/../common/wintun)
+link_directories(${CMAKE_CURRENT_SOURCE_DIR}/../common/Npcap)
 
 add_executable(VPNClient
   main.cpp
@@ -24,9 +25,11 @@ add_executable(VPNClient
   ../common/killer.h
   ../common/wintun/wintunlib.h
   ../common/wintun/wintunlib.cpp
+  ../common/protocol.h
+  ../common/protocol.cpp
 )
 
-target_link_libraries(VPNClient Qt${QT_VERSION_MAJOR}::Core Qt${QT_VERSION_MAJOR}::Network  Ws2_32.lib Iphlpapi.lib)
+target_link_libraries(VPNClient Qt${QT_VERSION_MAJOR}::Core Qt${QT_VERSION_MAJOR}::Network  Ws2_32.lib Iphlpapi.lib wpcap.lib)
 
 include(GNUInstallDirs)
 install(TARGETS VPNClient

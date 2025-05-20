@@ -37,6 +37,14 @@ void ClientSocket::onReadyRead() {
             record += sizeof(VpnClientHello);
             break;
         }
+        case VpnOp::IPPacket: {
+            auto* vip = (VpnIPPacket*) record;
+            printf("+++ VpnIPPacket received: client=%d size=%d\n",
+                   ntohl(vip->clientId), ntohl(vip->dataSize));
+
+            record += sizeof(VpnIPPacket) + ntohl(vip->dataSize);
+            break;
+        }
         default:
             printf("*** ClientSocket::onReadyRead() failed with wrong operator: %d\n",
                    vhead->op);
