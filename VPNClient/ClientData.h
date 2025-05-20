@@ -6,6 +6,7 @@
 
 #include <QHostAddress>
 
+#include "wintunlib.h"
 
 class ClientData {
 public:

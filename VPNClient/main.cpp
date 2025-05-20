@@ -5,7 +5,11 @@
 #include "ClientData.h"
 #include "handlers.h"
 
+#include "killer.h"
+
 ClientData cdata; // common data of the application
+
+WinTunLib*                            WinTunLib::mInstance = nullptr;
 
 void signalHandler(int signum) {
     printf("\nTerminated by user\n");
@@ -26,6 +30,30 @@ int main(int argc, char *argv[])
 
     if (argc > 2)
         cdata.serverPort = strtoul(argv[2], 0, 10);
+
+    if (argc > 3)
+        cdata.realAdapterIP = QHostAddress(argv[3]);
+
+    WSADATA wsadata;
+    int rc = WSAStartup(MAKEWORD(2,2), &wsadata);
+    if (rc) {
+        printf("WSAStartup fails: %d", rc);
+        return 1;
+    }
+
+    if(WinTunLib::isLoaded())
+        printf("wintun.dll is loaded\n");
+    else {
+        printf("Can't load wintun.dll\n");
+        a.exit(1);
+        return 1;
+    }
+
+    Killer wtlk ( [] {
+        WinTunLib::unload();
+        printf("wintun.dll is unloaded\n");
+    });
+
 
     VPNSocket socket;
     if(!socket.connectToServer(cdata.serverIP.toString(), cdata.serverPort, cdata.realAdapterIP)) {

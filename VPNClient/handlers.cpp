@@ -7,7 +7,6 @@ VPNSocket::VPNSocket(QObject *parent) :
     mTcpSocket.reset(new QTcpSocket(this));
     connect(mTcpSocket.get(), &QTcpSocket::connected, this, &VPNSocket::onConnected);
     connect(mTcpSocket.get(), &QTcpSocket::readyRead, this, &VPNSocket::onReadyRead);
-
 }
 
 bool VPNSocket::connectToServer(const QString& _ip, u_int _port, const QHostAddress& _adapter) {
