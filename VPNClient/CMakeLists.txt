@@ -19,12 +19,14 @@ add_executable(VPNClient
   ClientData.h
   handlers.h
   handlers.cpp
+  routetable.h
+  routetable.cpp
   ../common/killer.h
   ../common/wintun/wintunlib.h
   ../common/wintun/wintunlib.cpp
 )
 
-target_link_libraries(VPNClient Qt${QT_VERSION_MAJOR}::Core Qt${QT_VERSION_MAJOR}::Network  Ws2_32.lib)
+target_link_libraries(VPNClient Qt${QT_VERSION_MAJOR}::Core Qt${QT_VERSION_MAJOR}::Network  Ws2_32.lib Iphlpapi.lib)
 
 include(GNUInstallDirs)
 install(TARGETS VPNClient
