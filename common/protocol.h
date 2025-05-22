@@ -2,7 +2,7 @@
 #define PROTOCOL_H
 
 #include <winsock2.h>
-#include <windows.h>
+///#include <windows.h>
 //////////#include <ws2tcpip.h>
 
 #include <QVector>
@@ -68,6 +68,8 @@ public:
                data() const { return mData.data(); }
     u_char*    data()       { return mData.data(); }
     IPHeader*  header()     { return reinterpret_cast<IPHeader*>(mData.data()); }
+    const IPHeader* header() const
+                            { return reinterpret_cast<const IPHeader*>(mData.data()); }
     UDPHeader* udpHeader()  { return reinterpret_cast<UDPHeader*>(
                                         mData.data() + header()->size()); }
     TCPHeader* tcpHeader()  { return reinterpret_cast<TCPHeader*>(

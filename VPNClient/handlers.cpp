@@ -96,6 +96,11 @@ void VPNSocket::sendReceivedPackets() {
 }
 
 void VPNSocket::sendPacket(const IPPacket& _packet) {
+    auto* iph = _packet.header();
+
+    if (iph->srcAddr != htonl(cdata.virtAdapterIP.toIPv4Address()))
+        return;
+
     static VpnIPPacket pattern;
     const u_int sendSize = sizeof(VpnIPPacket) + _packet.size();
 

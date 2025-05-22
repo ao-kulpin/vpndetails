@@ -129,15 +129,15 @@ bool RealSender::openAdapter() {
 
                 AdapterAddr::getMacAddress(realIp, mAdaptMac);
                 auto& m = mAdaptMac;
-                /////////printf("+++ mac: %02x %02x %02x %02x %02x %02x\n", m[0], m[1], m[2], m[3], m[4], m[5]);
+                /////////("+++ mac: %02x %02x %02x %02x %02x %02x\n", m[0], m[1], m[2], m[3], m[4], m[5]);
 
                 AdapterAddr::getGatewayIP(realIp, &mGatewayIP);
-                ///// printf("+++ gatewayIP:%08X\n", mGatewayIP);
+                ///// ("+++ gatewayIP:%08X\n", mGatewayIP);
 
                 AdapterAddr::getGatewayMacAddress(mGatewayIP, mGatewayMac);
 
                 auto& gm = mGatewayMac;
-                ///////printf("+++ gateway mac: %02x %02x %02x %02x %02x %02x\n", gm[0], gm[1], gm[2], gm[3], gm[4], gm[5]);
+                ///////("+++ gateway mac: %02x %02x %02x %02x %02x %02x\n", gm[0], gm[1], gm[2], gm[3], gm[4], gm[5]);
 
                 // Fill Ethernet header
 
@@ -151,7 +151,7 @@ bool RealSender::openAdapter() {
     }
 
     if (! found) {
-        printf("Real adapter is not found\n");
+        ("Real adapter is not found\n");
         return false;
     }
 

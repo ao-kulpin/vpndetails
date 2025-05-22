@@ -40,10 +40,8 @@ public:
     bool         haveQuit       {false};
 
     using QueueElemType =       std::unique_ptr<IPPacket>;
-    std::queue<QueueElemType>          virtReceiveQueue;
-    QMutex                             virtReceiveMutex;
-    QWaitCondition                     virtReceiveWC;
-
+    std::queue<QueueElemType>   virtReceiveQueue;
+    QMutex                      virtReceiveMutex;
 };
 
 extern ClientData cdata;

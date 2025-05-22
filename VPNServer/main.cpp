@@ -1,3 +1,7 @@
+#include <winsock2.h>
+#include <windows.h>
+#include <iphlpapi.h>
+
 #include <QCoreApplication>
 #include <QTcpServer>
 #include <QTcpSocket>
@@ -6,13 +10,22 @@
 
 #include "ServerData.h"
 #include "handlers.h"
+#include "killer.h"
+#include "adapteraddr.h"
 
 ServerData sdata; // common data of the application
 
+std::unique_ptr<IP_ADAPTER_ADDRESSES> AdapterAddr::mAdaptList;
+
 void signalHandler(int signum) {
     printf("\nTerminated by user\n");
-    //bdata.haveQuit = true;
-    //SetEvent(bdata.quitEvent);
+    sdata.haveQuit = true;
+
+    if (sdata.clientReceiveMutex.tryLock(200)) {
+        sdata.clientReceiveWC.wakeAll();
+        sdata.clientReceiveMutex.unlock();
+    }
+
     QCoreApplication::quit();
 }
 
@@ -27,8 +40,8 @@ public:
 private slots:
     void onNewConnection() {
         printf("Client connected...\n");
-        QTcpSocket *npc = nextPendingConnection();
-        auto *handler = new ClientSocket(npc, ++sdata.clientCount);
+        auto *sock = new ClientSocket(nextPendingConnection(), ++sdata.clientCount);
+        sdata.socketMap[sock->clientId()] = sock;
     }
 };
 
@@ -50,9 +63,25 @@ int main(int argc, char *argv[])
 
     printf("Server is litening port %d\n", sdata.serverPort);
 
+    RealSender rsender;
+    if (rsender.openAdapter())
+        printf("Real adapter %s is open\n", sdata.realAdapterIP.toString().toStdString().c_str());
+    else {
+        printf("Can't open real adapter\n");
+        return 1;
+    }
+
+    Killer rsk ( [&] {
+        rsender.wait();
+        rsender.closeAdapter();
+        printf("Real sender is ended\n");
+    });
+
     printf("Waiting for Ctrl-C ...\n\n");
 
     std::signal(SIGINT, signalHandler);
+
+    rsender.start();
 
     return a.exec();
 }

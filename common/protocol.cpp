@@ -1,3 +1,6 @@
+#include <winsock2.h>
+#include <windows.h>
+
 #include "protocol.h"
 
 struct PPseudoHeader{
