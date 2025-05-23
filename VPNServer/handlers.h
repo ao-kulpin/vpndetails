@@ -7,6 +7,7 @@
 ////////#include <windows.h>
 
 #include <QThread>
+#include <QEvent>
 #include <QTcpSocket>
 #include <QHostAddress>
 
@@ -20,16 +21,36 @@ class ClientSocket : public QObject
 public:
     ClientSocket(QTcpSocket* _socket, u_int clientId, QObject *parent = nullptr);
 
+    void takeFromReceiver(IPPacket& _packet);
+
     u_int clientId()            { return mClientId; }
 
 private:
     bool                        updatePacket (IPPacket& _packet);
     void                        onReadyRead();
     u_short                     getServerPort(u_short clientPort);
+    void                        sendReceivedPackets();
+    void                        sendPacket(const IPPacket& _packet);
+    void                        wakeClient();
+
     std::unique_ptr<QTcpSocket> mSocket = nullptr;
     const u_int                 mClientId = 0;
 
     QHostAddress virtAdapterIP  {"10.6.7.7"};
+
+    using QueueElemType = std::unique_ptr<IPPacket>;
+    std::queue<QueueElemType>    mReceiveQueue;
+    QMutex                       mReceiveMutex;
+
+protected:
+    bool event(QEvent *event) override;
+};
+
+class ClientReceiveEvent: public QEvent {
+public:
+    static const QEvent::Type EventType = static_cast<QEvent::Type>(QEvent::User + 1);
+
+    ClientReceiveEvent (): QEvent(EventType) {}
 };
 
 class RealSender : public QThread
@@ -52,5 +73,22 @@ public:
     EthernetVlan2 mEthHeader;  // maximal length of Ethernet header
 };
 
+class RealReceiver : public QThread
+{
+    Q_OBJECT
+    void    run() override;
+
+    void    pcapHandler(const pcap_pkthdr *header, const u_char *pkt_data);
+
+    ClientSocket* findTargetClient(const IPPacket& _packet);
+
+    int     mPacketCount = 0;
+    pcap_t* mPcapHandle  = nullptr;
+
+public:
+
+    friend
+        void    realReceiveHandler(u_char *param, const pcap_pkthdr *header, const u_char *pkt_data);
+};
 
 #endif // HANDLERS_H

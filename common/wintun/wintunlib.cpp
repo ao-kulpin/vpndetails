@@ -1,8 +1,11 @@
+#include <winsock2.h>
+#include <Windows.h>
+
 #include "wintunlib.h"
 
 WinTunLib::WinTunLib() {
     mModule =
-        LoadLibraryEx("wintun.dll", NULL, LOAD_LIBRARY_SEARCH_APPLICATION_DIR | LOAD_LIBRARY_SEARCH_SYSTEM32);
+        LoadLibraryEx(L"wintun.dll", NULL, LOAD_LIBRARY_SEARCH_APPLICATION_DIR | LOAD_LIBRARY_SEARCH_SYSTEM32);
 
     if (!mModule)
         return;

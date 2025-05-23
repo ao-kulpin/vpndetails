@@ -2,6 +2,7 @@
 #include <windows.h>
 #include <iphlpapi.h>
 
+#include <QCoreApplication>
 #include <QTcpSocket>
 
 #include <iphlpapi.h>
@@ -21,7 +22,6 @@ ClientSocket::ClientSocket(QTcpSocket* _socket, u_int clientId, QObject *parent)
 {
     connect(mSocket.get(), &QTcpSocket::readyRead, this,
             &ClientSocket::onReadyRead, Qt::DirectConnection);
-
 }
 
 void ClientSocket::onReadyRead() {
@@ -49,7 +49,7 @@ void ClientSocket::onReadyRead() {
         }
         case VpnOp::IPPacket: {
             auto* vip = (VpnIPPacket*) record;
-            printf("+++ VpnIPPacket received: client=%d size=%d\n",
+            printf("+++ VpnIPPacket received: client=%lu size=%lu\n",
                    ntohl(vip->clientId), ntohl(vip->dataSize));
 
             IPPacket packet(vip->data, ntohl(vip->dataSize));
@@ -132,6 +132,67 @@ u_short ClientSocket::getServerPort(u_short clientPort) {
       return pi.serverPort;
     }
 }
+
+void ClientSocket::takeFromReceiver(IPPacket& _packet) {
+    // works inside Realreceiver thread
+    QMutexLocker rql(&mReceiveMutex);
+    mReceiveQueue.push(std::make_unique<IPPacket>(_packet));
+    wakeClient();
+}
+
+bool ClientSocket::event(QEvent *event) {
+  if (event->type() == ClientReceiveEvent::EventType) {
+        sendReceivedPackets();
+        return true;
+    }
+    return QObject::event(event);
+}
+
+void ClientSocket::sendReceivedPackets() {
+    auto& inputQueue = mReceiveQueue;
+    auto& mutex = mReceiveMutex;
+    auto& haveQuit = sdata.haveQuit;
+
+    if (haveQuit)
+        return;
+
+    while (true) {
+        QMutexLocker rql (&mutex);
+
+        if (inputQueue.empty())
+            return;
+
+        IPPacket packet (*inputQueue.front());
+        inputQueue.pop();
+
+        rql.unlock();
+
+        sendPacket(packet);
+    }
+}
+
+void ClientSocket::sendPacket(const IPPacket& _packet) {
+    auto* iph = _packet.header();
+
+    static VpnIPPacket pattern;
+    const u_int sendSize = sizeof(VpnIPPacket) + _packet.size();
+
+    std::unique_ptr<VpnIPPacket> vip(
+        (VpnIPPacket*) new u_char[sendSize]);
+
+    memcpy(vip.get(), &pattern, sizeof pattern);
+    vip->clientId = htonl(mClientId);
+    vip->dataSize = htonl(_packet.size());
+    memcpy(vip->data, _packet.data(), _packet.size());
+
+    mSocket->write((const char*) vip.get(), sendSize);
+}
+
+void ClientSocket::wakeClient() {
+    QCoreApplication::postEvent(this, new ClientReceiveEvent);
+}
+
+
 
 void RealSender::run() {
     int packetCount = 0;
@@ -225,7 +286,7 @@ bool RealSender::openAdapter() {
     }
 
     if (! found) {
-        ("Real adapter is not found\n");
+        printf("Real adapter is not found\n");
         return false;
     }
 
@@ -253,6 +314,110 @@ bool RealSender::send(const IPPacket& _packet) {
     EthernetFrame eframe(mEthHeader, _packet);
 
     return pcap_sendpacket(mPcapHandle, eframe.data(), eframe.size()) == 0;
+}
+
+void realReceiveHandler(u_char *param, const pcap_pkthdr *header, const u_char *pkt_data) {
+    reinterpret_cast<RealReceiver*>(param)->pcapHandler(header, pkt_data);
+}
+
+void RealReceiver::pcapHandler(const pcap_pkthdr *header, const u_char *pkt_data){
+    //////////printf("+++ RealReceiver::pcapHandler() 1\n");
+    while(sdata.haveQuit) {
+        pcap_breakloop(mPcapHandle);
+        return;
+    }
+
+    const auto* eh  = reinterpret_cast<const EthernetHeader*> (pkt_data);
+    const auto* iph = reinterpret_cast<const IPHeader*> (pkt_data + eh->size());
+
+    /////////printf("+++ RealReceiver::pcapHandler() 2\n");
+    /////printf("+++ RealReceiver::pcapHandler() 3\n");
+
+    if (++mPacketCount % 50 == 0)
+        printf("RealReceiver: %d real received\n", mPacketCount);
+
+    IPPacket packet((const u_char*) iph, ntohs(iph->totalLen));
+
+    auto* targetClient = findTargetClient(packet);
+    if (targetClient)
+        targetClient->takeFromReceiver(packet);
+}
+
+void RealReceiver::run() {
+    printf("+++ RealReceiver starts\n");
+    pcap_if_t *alldevs = nullptr;
+    char errbuf[PCAP_ERRBUF_SIZE+1] = {0};
+
+    if(pcap_findalldevs(&alldevs, errbuf) == -1) {
+        printf("RealReceiver: pcap_findalldevs fails: %s\n", errbuf);
+        return;
+    }
+
+    Killer adk ([&] {
+        pcap_freealldevs(alldevs);
+    });
+
+    const IPAddr realIp  = htonl(sdata.realAdapterIP.toIPv4Address());
+    bool found = false;
+    for (auto* dev = alldevs; !found && dev; dev = dev->next) {
+        for (auto* ap = dev->addresses; !found && ap; ap = ap->next) {
+            IPAddr ip4 = ((sockaddr_in*) ap->addr)->sin_addr.S_un.S_addr;
+            if(ap->addr->sa_family == AF_INET && realIp == ip4) {
+                mPcapHandle = pcap_open_live(dev->name,         // name of the device
+                                             65536,			// portion of the packet to capture.
+                                             // 65536 grants that the whole packet will be captured on all the MACs.
+                                             0,				// promiscuous mode (nonzero means promiscuous)
+                                             1000,             // read timeout
+                                             errbuf			// error buffer
+                                             );
+                printf("pcap_open_live(%p) succeed\n", mPcapHandle);
+                found = true;
+            }
+        }
+    }
+
+    if(!found || !mPcapHandle) {
+        printf("RealReceiver: can't open adapter: %s\n", errbuf);
+        return;
+    }
+
+    pcap_loop(mPcapHandle, 0, realReceiveHandler, reinterpret_cast<u_char*>(this));
+
+    pcap_close(mPcapHandle);
+    mPcapHandle = nullptr;
+
+    printf("Real Receiver thread edned (%d packets handled)\n", mPacketCount);
+}
+
+ClientSocket* RealReceiver::findTargetClient(const IPPacket& _packet) {
+    auto* iph = _packet.header();
+
+    if (iph->destAddr != htonl(sdata.realAdapterIP.toIPv4Address()))
+        return nullptr;
+
+    int destPort = -1;
+    switch(iph->proto) {
+    case IPPROTO_UDP:
+        destPort = _packet.udpHeader()->dport;
+        break;
+
+    case IPPROTO_TCP:
+        destPort = _packet.tcpHeader()->dport;
+        break;
+
+    default:
+        break;
+    }
+
+    if (destPort != -1 && sdata.serverPortMap.count(destPort)) {
+        auto clientId = sdata.serverPortMap[destPort].clientId;
+
+        assert(sdata.socketMap.count(clientId));
+
+        return sdata.socketMap[clientId];
+    }
+
+    return nullptr;
 }
 
 bool operator < (const PortKey& lhs, const PortKey& rhs) {
