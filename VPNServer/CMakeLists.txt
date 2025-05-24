@@ -22,6 +22,8 @@ add_executable(VPNServer
   handlers.cpp
   ../common/protocol.h
   ../common/protocol.cpp
+  ../common/ProtoBuilder.h
+  ../common/ProtoBuilder.cpp
   ../common/adapteraddr.h
   ../common/adapteraddr.cpp
 )

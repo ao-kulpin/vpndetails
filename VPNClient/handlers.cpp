@@ -1,7 +1,7 @@
 #include <QCoreApplication>
 
 #include "handlers.h"
-#include "protocol.h"
+#include "ProtoBuilder.h"
 
 VPNSocket::VPNSocket(QObject *parent) :
     QObject(parent)
@@ -96,25 +96,10 @@ void VPNSocket::sendReceivedPackets() {
 }
 
 void VPNSocket::sendPacket(const IPPacket& _packet) {
-    auto* iph = _packet.header();
-
-    if (iph->srcAddr != htonl(cdata.virtAdapterIP.toIPv4Address()))
-        return;
-
-    static VpnIPPacket pattern;
-    const u_int sendSize = sizeof(VpnIPPacket) + _packet.size();
-
-    std::unique_ptr<VpnIPPacket> vip(
-        (VpnIPPacket*) new u_char[sendSize]);
-
-    memcpy(vip.get(), &pattern, sizeof pattern);
-    vip->clientId = htonl(cdata.clientId);
-    vip->dataSize = htonl(_packet.size());
-    memcpy(vip->data, _packet.data(), _packet.size());
-
+    u_int sendSize = 0;
+    auto vip = ProtoBuilder::composeIPacket(_packet, cdata.clientId, &sendSize);
     mTcpSocket->write((const char*) vip.get(), sendSize);
 }
-
 
 VirtReceiver::VirtReceiver() {}
 

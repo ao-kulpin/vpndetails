@@ -12,6 +12,7 @@
 #include "ServerData.h"
 #include "killer.h"
 #include "adapteraddr.h"
+#include "ProtoBuilder.h"
 
 #include <pcap.h>
 
@@ -52,13 +53,13 @@ void ClientSocket::onReadyRead() {
             printf("+++ VpnIPPacket received: client=%lu size=%lu\n",
                    ntohl(vip->clientId), ntohl(vip->dataSize));
 
-            IPPacket packet(vip->data, ntohl(vip->dataSize));
+            auto packet = ProtoBuilder::decomposeIPacket(*vip);
 
-            if (updatePacket(packet)) {
+            if (updatePacket(*packet)) {
               // put packet into queue
 
               QMutexLocker crl (&sdata.clientReceiveMutex);
-              sdata.clientReceiveQueue.push(std::make_unique<IPPacket>(packet));
+              sdata.clientReceiveQueue.push(std::move(packet));
               sdata.clientReceiveWC.wakeAll();
             }
 
@@ -172,19 +173,8 @@ void ClientSocket::sendReceivedPackets() {
 }
 
 void ClientSocket::sendPacket(const IPPacket& _packet) {
-    auto* iph = _packet.header();
-
-    static VpnIPPacket pattern;
-    const u_int sendSize = sizeof(VpnIPPacket) + _packet.size();
-
-    std::unique_ptr<VpnIPPacket> vip(
-        (VpnIPPacket*) new u_char[sendSize]);
-
-    memcpy(vip.get(), &pattern, sizeof pattern);
-    vip->clientId = htonl(mClientId);
-    vip->dataSize = htonl(_packet.size());
-    memcpy(vip->data, _packet.data(), _packet.size());
-
+    u_int sendSize = 0;
+    auto vip = ProtoBuilder::composeIPacket(_packet, mClientId, &sendSize);
     mSocket->write((const char*) vip.get(), sendSize);
 }
 

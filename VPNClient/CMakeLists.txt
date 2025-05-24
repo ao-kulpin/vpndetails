@@ -27,6 +27,8 @@ add_executable(VPNClient
   ../common/wintun/wintunlib.cpp
   ../common/protocol.h
   ../common/protocol.cpp
+  ../common/ProtoBuilder.h
+  ../common/ProtoBuilder.cpp
 )
 
 target_link_libraries(VPNClient Qt${QT_VERSION_MAJOR}::Core Qt${QT_VERSION_MAJOR}::Network  Ws2_32.lib Iphlpapi.lib wpcap.lib)

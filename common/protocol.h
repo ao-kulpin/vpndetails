@@ -140,14 +140,6 @@ private:
     bool        mKeepLast = false;
 };
 
-#if 0
-enum class VpnOp: u_short {     // VPN Operations
-    None = 0,                   // no operation
-    ClientHello,                // First request of a client to the server
-    ServerHello                 // First answer from the sever
-};
-#endif
-
 class VpnOp {                       // VPN Operations
 public:
     static const u_short
