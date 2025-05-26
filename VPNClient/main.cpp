@@ -122,6 +122,7 @@ int main(int argc, char *argv[])
         printf("Session is ended\n");
     });
 
+// #if 0
     RouteTable rtable;
 
     if (rtable.updateDefaultRoute())
@@ -138,6 +139,7 @@ int main(int argc, char *argv[])
             printf("Can't restore the route table\n");
         }
     });
+// #endif
 
     cdata.quitEvent = CreateEvent(0, TRUE, FALSE, 0);
     if (!cdata.quitEvent) {
@@ -153,13 +155,15 @@ int main(int argc, char *argv[])
 
 
     //VPNSocket socket;
-    cdata.vpnSocket = new VPNSocket;
-    if(!cdata.vpnSocket->connectToServer(cdata.serverIP.toString(), cdata.serverPort, cdata.realAdapterIP)) {
+    auto& socket = (cdata.vpnSocket = new VPNSocket);
+    if(!socket->connectToServer(cdata.serverIP.toString(), cdata.serverPort, cdata.realAdapterIP)) {
         printf("Can't connect to server %s:%d\n", cdata.serverIP.toString().toLocal8Bit().constData(), cdata.serverPort);
         return 1;
     }
 
-    printf("Connected to server %s:%d\n", cdata.serverIP.toString().toLocal8Bit().constData(), cdata.serverPort);
+    printf("Connected to server %s:%d (localAddress: %s)\n",
+           cdata.serverIP.toString().toLocal8Bit().constData(), cdata.serverPort,
+           socket->localAddress().toString().toStdString().c_str());
 
     VirtReceiver vreceiver;
     Killer vrck ( [&] {

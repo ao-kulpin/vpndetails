@@ -24,7 +24,7 @@ public:
     void takeFromReceiver(IPPacket& _packet);
 
     u_int clientId()            { return mClientId; }
-
+    QHostAddress                localAddress();
 private:
     bool                        updatePacket (IPPacket& _packet);
     void                        onReadyRead();

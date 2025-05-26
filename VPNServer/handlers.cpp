@@ -26,7 +26,7 @@ ClientSocket::ClientSocket(QTcpSocket* _socket, u_int clientId, QObject *parent)
 }
 
 void ClientSocket::onReadyRead() {
-    printf("ClientSocket::onReadyRead()\n");
+    /// printf("ClientSocket::onReadyRead()\n");
     QByteArray clientData = mSocket->readAll();
     char* start  = clientData.data();
     auto* record = start;
@@ -50,7 +50,9 @@ void ClientSocket::onReadyRead() {
         }
         case VpnOp::IPPacket: {
             auto* vip = (VpnIPPacket*) record;
-            printf("+++ VpnIPPacket received: client=%lu size=%lu\n",
+            static int count = 0;
+            if (++ count % 10 == 0)
+                printf("+++ %d VpnIPPacket received: client=%lu size=%lu\n", count,
                    ntohl(vip->clientId), ntohl(vip->dataSize));
 
             auto packet = ProtoBuilder::decomposeIPacket(*vip);
@@ -136,6 +138,7 @@ u_short ClientSocket::getServerPort(u_short clientPort) {
 
 void ClientSocket::takeFromReceiver(IPPacket& _packet) {
     // works inside Realreceiver thread
+    printf("+++ ClientSocket::takeFromReceiver()\n");
     QMutexLocker rql(&mReceiveMutex);
     mReceiveQueue.push(std::make_unique<IPPacket>(_packet));
     wakeClient();
@@ -176,11 +179,17 @@ void ClientSocket::sendPacket(const IPPacket& _packet) {
     u_int sendSize = 0;
     auto vip = ProtoBuilder::composeIPacket(_packet, mClientId, &sendSize);
     mSocket->write((const char*) vip.get(), sendSize);
+    printf("+++ ClientSocket::sendPacket(%u)\n", sendSize);
 }
 
 void ClientSocket::wakeClient() {
     QCoreApplication::postEvent(this, new ClientReceiveEvent);
 }
+
+QHostAddress ClientSocket::localAddress() {
+    return mSocket ? mSocket->localAddress() : QHostAddress::Null;
+}
+
 
 
 
@@ -311,7 +320,6 @@ void realReceiveHandler(u_char *param, const pcap_pkthdr *header, const u_char *
 }
 
 void RealReceiver::pcapHandler(const pcap_pkthdr *header, const u_char *pkt_data){
-    //////////printf("+++ RealReceiver::pcapHandler() 1\n");
     while(sdata.haveQuit) {
         pcap_breakloop(mPcapHandle);
         return;
@@ -320,11 +328,12 @@ void RealReceiver::pcapHandler(const pcap_pkthdr *header, const u_char *pkt_data
     const auto* eh  = reinterpret_cast<const EthernetHeader*> (pkt_data);
     const auto* iph = reinterpret_cast<const IPHeader*> (pkt_data + eh->size());
 
-    /////////printf("+++ RealReceiver::pcapHandler() 2\n");
-    /////printf("+++ RealReceiver::pcapHandler() 3\n");
-
     if (++mPacketCount % 50 == 0)
         printf("RealReceiver: %d real received\n", mPacketCount);
+
+    if((iph->ver_ihl >> 4) != 4)
+        // take only IPv4 packets
+        return;
 
     IPPacket packet((const u_char*) iph, ntohs(iph->totalLen));
 

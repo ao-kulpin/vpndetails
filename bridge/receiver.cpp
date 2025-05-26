@@ -14,6 +14,16 @@ void VirtReceiver::wakeSender() {
         bdata.virtReceiveMutex.unlock();
     }
 }
+static
+    void headPrint(const IPHeader* header, char* outBuf) {
+    char src_s[INET_ADDRSTRLEN];
+    char dest_s[INET_ADDRSTRLEN];
+
+    inet_ntop(AF_INET, (void*) &header->srcAddr, src_s, sizeof src_s);
+    inet_ntop(AF_INET, (void*) &header->destAddr, dest_s, sizeof dest_s);
+
+    sprintf(outBuf, "%s->%s (%d) len=%d\n", src_s, dest_s, header->proto, ntohs(header->totalLen));
+}
 
 void VirtReceiver::run() {
     HANDLE events[] = {bdata.quitEvent, WinTunLib::getReadWaitEvent(bdata.session)};
@@ -22,7 +32,19 @@ void VirtReceiver::run() {
     while(!bdata.haveQuit) {
         DWORD packetSize = 0;
         BYTE* packet = WinTunLib::receivePacket(bdata.session, &packetSize);
-        if (packet) {
+        //auto* iph = ((IPHeader*) packet);
+
+        //if ((iph->ver_ihl >> 4) != 4)
+        //    continue;
+
+        //char buf[128];
+        //headPrint(iph, buf);
+        //printf("VirtReceiver::run %p packetSize=%lu, totalLen=%d ver=%d\n%s\n",
+        //                    packet, packetSize, ntohs(iph->totalLen), iph->ver_ihl >> 4, buf);
+        if (packet) // IPv4
+        {
+            const auto* iph = (IPHeader*) packet;
+            if ((iph->ver_ihl >> 4) == 4) // take only IPv4 packets
             {
                 QMutexLocker vrl (&bdata.virtReceiveMutex);
 
@@ -30,6 +52,7 @@ void VirtReceiver::run() {
                     printf("VirtReceiver: %d packets received\n", packetCount);
 
                 bdata.virtReceiveQueue.push(std::make_unique<IPPacket>(packet, packetSize));
+///////////                bdata.virtReceiveQueue.push(std::make_unique<IPPacket>(packet, iph->totalLen));
                 bdata.virtReceiveWC.wakeAll();
             }
 
@@ -151,7 +174,7 @@ bool RealSender::openAdapter() {
     }
 
     if (! found) {
-        ("Real adapter is not found\n");
+        printf("Real adapter is not found\n");
         return false;
     }
 
@@ -179,16 +202,6 @@ bool RealSender::send(const IPPacket& _packet) {
     EthernetFrame eframe(mEthHeader, _packet);
 
     return pcap_sendpacket(mPcapHandle, eframe.data(), eframe.size()) == 0;
-}
-
-static
-void headPrint(IPHeader* header, char* outBuf) {
-    char src_s[INET_ADDRSTRLEN];
-    char dest_s[INET_ADDRSTRLEN];
-    inet_ntop(AF_INET, (void*) &header->srcAddr, src_s, sizeof src_s);
-    inet_ntop(AF_INET, (void*) &header->destAddr, dest_s, sizeof dest_s);
-
-    sprintf(outBuf, "%s->%s (%d)", src_s, dest_s, header->proto);
 }
 
 bool RealSender::updatePacket(IPPacket& _packet) {
@@ -228,6 +241,14 @@ void RealReceiver::pcapHandler(const pcap_pkthdr *header, const u_char *pkt_data
 
     if (++mPacketCount % 50 == 0)
         printf("RealReceiver: %d real received\n", mPacketCount);
+
+    if((iph->ver_ihl >> 4) != 4)
+        // take only IPv4 packets
+        return;
+
+    char buf[128];
+    headPrint(iph, buf);
+    printf("pcapHandler: %s\n", buf);
 
     bdata.realReceiveQueue.push(std::make_unique<IPPacket>((const u_char*) iph, ntohs(iph->totalLen)));
     bdata.realReceiveWC.wakeAll();
@@ -331,7 +352,7 @@ bool VirtSender::updatePacket(IPPacket& _packet) {
     if (header->destAddr == htonl(bdata.realAdapterIP.toIPv4Address())) {
         header->destAddr = htonl(bdata.virtAdapterIP.toIPv4Address());
         _packet.updateChecksum();
-        ///////// printf("+++ VirtSender: Good destination IP: %s\n", buf);
+        printf("+++ VirtSender: Good destination IP: %s\n", buf);
         return true;
     }
     else {

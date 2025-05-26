@@ -12,7 +12,7 @@ VPNSocket::VPNSocket(QObject *parent) :
 }
 
 bool VPNSocket::connectToServer(const QString& _ip, u_int _port, const QHostAddress& _adapter) {
-    mTcpSocket->bind(_adapter);
+/////////////    mTcpSocket->bind(_adapter);
     mTcpSocket->connectToHost(_ip, _port);
     if (mTcpSocket->waitForConnected(cdata.connectTime)) {
         return true;
@@ -42,7 +42,9 @@ void VPNSocket::onReadyRead() {
                    vhead->sign);
             return;
         }
+
         switch(ntohs(vhead->op)) {
+
         case VpnOp::ServerHello: {
             auto* shello = reinterpret_cast<const VpnServerHello*>(record);
             cdata.clientId = ntohl(shello->clientId);
@@ -51,6 +53,19 @@ void VPNSocket::onReadyRead() {
             record += sizeof (VpnServerHello);
             break;
         }
+
+        case VpnOp::IPPacket: {
+            auto* vip = (VpnIPPacket*) record;
+            u_int dataSize = ntohl(vip->dataSize);
+            printf("+++ VpnIPPacket received: client=%lu size=%u\n",
+                   ntohl(vip->clientId), dataSize);
+
+            auto packet = ProtoBuilder::decomposeIPacket(*vip);
+
+            record += sizeof(VpnIPPacket) + dataSize;
+            break;
+        }
+
         default:
             printf("*** VPNSocket::onReadyRead() failed with wrong operator: %d\n",
                    vhead->op);
@@ -93,6 +108,10 @@ void VPNSocket::sendReceivedPackets() {
 
         sendPacket(packet);
     }
+}
+
+QHostAddress VPNSocket::localAddress() {
+    return mTcpSocket ? mTcpSocket->localAddress() : QHostAddress::Null;
 }
 
 void VPNSocket::sendPacket(const IPPacket& _packet) {

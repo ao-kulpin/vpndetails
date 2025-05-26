@@ -62,6 +62,7 @@ int main(int argc, char *argv[])
     }
 
     printf("Server is litening port %d\n", sdata.serverPort);
+//#if 0
 
     RealSender rsender;
     if (rsender.openAdapter())
@@ -77,11 +78,19 @@ int main(int argc, char *argv[])
         printf("Real sender is ended\n");
     });
 
+    RealReceiver rreceiver;
+    Killer rrck ([&]{
+        rreceiver.wait();
+        printf("Real receiver is ended\n");
+    });
+//#endif
+
     printf("Waiting for Ctrl-C ...\n\n");
 
     std::signal(SIGINT, signalHandler);
 
     rsender.start();
+    rreceiver.start();
 
     return a.exec();
 }
