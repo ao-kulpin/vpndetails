@@ -50,4 +50,14 @@ public:
     VirtReceiveEvent (): QEvent(EventType) {}
 };
 
+class VirtSender : public QThread
+{
+    Q_OBJECT
+    void run() override;
+
+    bool updatePacket(IPPacket& _packet);
+    bool send(const IPPacket& _packet);
+};
+
+
 #endif // HANDLERS_H

@@ -21,6 +21,13 @@ void signalHandler(int signum) {
     printf("\nTerminated by user\n");
     cdata.haveQuit = true;
     SetEvent(cdata.quitEvent);
+
+    // Wake up VirtSender thread
+    if (cdata.serverReceiveMutex.tryLock(200)) {
+        cdata.serverReceiveWC.wakeAll();
+        cdata.serverReceiveMutex.unlock();
+    }
+
     QCoreApplication::quit();
 }
 
@@ -171,11 +178,17 @@ int main(int argc, char *argv[])
         printf("Virtual receiver is ended\n");
     });
 
+    VirtSender vsender;
+    Killer vsk ( [&]{
+        vsender.wait();
+        printf("Virtual sender is ended\n");
+    });
 
     printf("Waiting for Ctrl-C ...\n\n");
     std::signal(SIGINT, signalHandler);
 
     vreceiver.start();
+    vsender.start();
 
     return a.exec();
 }

@@ -57,8 +57,8 @@ void VPNSocket::onReadyRead() {
         case VpnOp::IPPacket: {
             auto* vip = (VpnIPPacket*) record;
             u_int dataSize = ntohl(vip->dataSize);
-            printf("+++ VpnIPPacket received: client=%lu size=%u\n",
-                   ntohl(vip->clientId), dataSize);
+//            printf("+++ VpnIPPacket received: client=%lu size=%u\n",
+//                   ntohl(vip->clientId), dataSize);
 
             putToServerQueue(ProtoBuilder::decomposeIPacket(*vip));
 
@@ -176,6 +176,58 @@ void VirtReceiver::run() {
 
 void VirtReceiver::wakeSender() {
     QCoreApplication::postEvent(cdata.vpnSocket, new VirtReceiveEvent);
+}
+
+void VirtSender::run() {
+    int packetCount = 0;
+
+    while (true) {
+        auto& inputQueue = cdata.serverReceiveQueue;
+        auto& inputWC = cdata.serverReceiveWC;
+        auto& mutex = cdata.serverReceiveMutex;
+        auto& haveQuit = cdata.haveQuit;
+
+        QMutexLocker vsl (&mutex);
+
+        while (!haveQuit && inputQueue.empty())
+            inputWC.wait(&mutex);
+
+        if (haveQuit)
+            break; // end of thread
+
+        IPPacket packet (*inputQueue.front());
+
+        inputQueue.pop();
+        vsl.unlock();
+
+        if (updatePacket(packet)) {
+            if (send(packet)) {
+                if (++packetCount % 50 == 0)
+                    printf("VirtSender: %d real packets sent\n", packetCount);
+            } else {
+                static int failCount = 0;
+                printf ("+++ VirtSender:send() fails %d\n", ++failCount);
+            }
+        }
+    }
+    printf("Virtual Sender thread edned (%d packets handled)\n", packetCount);
+}
+
+bool VirtSender::updatePacket(IPPacket& _packet) {
+    return true;
+}
+
+bool VirtSender::send(const IPPacket& _packet) {
+    auto& session = cdata.session;
+    BYTE* winTunPacket = WinTunLib::allocateSendPacket(session, _packet.size());
+
+    if (!winTunPacket)
+        return false;
+
+    memcpy(winTunPacket, _packet.data(), _packet.size());
+
+    WinTunLib::sendPacket(session, winTunPacket);
+    return true;
 }
 
 
