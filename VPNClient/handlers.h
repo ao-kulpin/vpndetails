@@ -22,8 +22,10 @@ private slots:
     void onReadyRead();
 
 private:
-    void sendReceivedPackets();
-    void sendPacket(const IPPacket& _packet);
+    void sendReceivedVirtPackets();
+    void sendVirtPacket(const IPPacket& _packet);
+    void putToServerQueue(IPPacketPtr _packet);
+
     std::unique_ptr<QTcpSocket> mTcpSocket;
 
 protected:

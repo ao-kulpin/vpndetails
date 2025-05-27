@@ -60,7 +60,7 @@ void VPNSocket::onReadyRead() {
             printf("+++ VpnIPPacket received: client=%lu size=%u\n",
                    ntohl(vip->clientId), dataSize);
 
-            auto packet = ProtoBuilder::decomposeIPacket(*vip);
+            putToServerQueue(ProtoBuilder::decomposeIPacket(*vip));
 
             record += sizeof(VpnIPPacket) + dataSize;
             break;
@@ -81,13 +81,13 @@ bool VPNSocket::event(QEvent *event) {
         if (++eventCount % 50 == 0)
             printf("+++ %d VirtReceiveEvent! %p\n", eventCount, QThread::currentThread());
 
-        sendReceivedPackets();
+        sendReceivedVirtPackets();
         return true;
     }
     return QObject::event(event);
 }
 
-void VPNSocket::sendReceivedPackets() {
+void VPNSocket::sendReceivedVirtPackets() {
     auto& inputQueue = cdata.virtReceiveQueue;
     auto& mutex = cdata.virtReceiveMutex;
     auto& haveQuit = cdata.haveQuit;
@@ -106,7 +106,7 @@ void VPNSocket::sendReceivedPackets() {
 
         vrl.unlock();
 
-        sendPacket(packet);
+        sendVirtPacket(packet);
     }
 }
 
@@ -114,10 +114,20 @@ QHostAddress VPNSocket::localAddress() {
     return mTcpSocket ? mTcpSocket->localAddress() : QHostAddress::Null;
 }
 
-void VPNSocket::sendPacket(const IPPacket& _packet) {
+void VPNSocket::sendVirtPacket(const IPPacket& _packet) {
     u_int sendSize = 0;
     auto vip = ProtoBuilder::composeIPacket(_packet, cdata.clientId, &sendSize);
     mTcpSocket->write((const char*) vip.get(), sendSize);
+}
+
+void VPNSocket::putToServerQueue(IPPacketPtr _packet) {
+    auto& queue = cdata.serverReceiveQueue;
+    auto& mutex = cdata.serverReceiveMutex;
+    auto& wc = cdata.serverReceiveWC;
+
+    QMutexLocker qul(&mutex);
+    queue.push(std::move(_packet));
+    wc.wakeAll();
 }
 
 VirtReceiver::VirtReceiver() {}
