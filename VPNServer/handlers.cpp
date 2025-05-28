@@ -51,9 +51,9 @@ void ClientSocket::onReadyRead() {
         case VpnOp::IPPacket: {
             auto* vip = (VpnIPPacket*) record;
             static int count = 0;
-            if (++ count % 10 == 0)
-                printf("+++ %d VpnIPPacket received: client=%lu size=%lu\n", count,
-                   ntohl(vip->clientId), ntohl(vip->dataSize));
+            ///if (++ count % 10 == 0)
+            ///    printf("+++ %d VpnIPPacket received: client=%lu size=%lu\n", count,
+            ///       ntohl(vip->clientId), ntohl(vip->dataSize));
 
             auto packet = ProtoBuilder::decomposeIPacket(*vip);
 
@@ -82,7 +82,7 @@ bool ClientSocket::updatePacket (IPPacket& _packet) {
     if (iph->srcAddr != htonl(virtAdapterIP.toIPv4Address())) {
         char src_s[INET_ADDRSTRLEN];
         inet_ntop(AF_INET, (void*) &iph->srcAddr, src_s, sizeof src_s);
-        printf("+++ Incorrect srcAddr: %s", src_s);
+        printf("+++ Incorrect srcAddr: %s\n", src_s);
         return false;
     }
 
@@ -138,7 +138,8 @@ u_short ClientSocket::getServerPort(u_short clientPort) {
 
 void ClientSocket::takeFromReceiver(IPPacket& _packet) {
     // works inside Realreceiver thread
-    printf("+++ ClientSocket::takeFromReceiver()\n");
+
+    ///printf("+++ ClientSocket::takeFromReceiver()\n");
     QMutexLocker rql(&mReceiveMutex);
     mReceiveQueue.push(std::make_unique<IPPacket>(_packet));
     wakeClient();
@@ -176,10 +177,14 @@ void ClientSocket::sendReceivedPackets() {
 }
 
 void ClientSocket::sendPacket(const IPPacket& _packet) {
-    u_int sendSize = 0;
-    auto vip = ProtoBuilder::composeIPacket(_packet, mClientId, &sendSize);
-    mSocket->write((const char*) vip.get(), sendSize);
-    printf("+++ ClientSocket::sendPacket(%u)\n", sendSize);
+    u_int sentSize = 0;
+    auto vip = ProtoBuilder::composeIPacket(_packet, mClientId, &sentSize);
+    mSocket->write((const char*) vip.get(), sentSize);
+    ++mSentPackCount;
+    mSentPackSize += sentSize;
+    if (mSentPackCount % 50 == 0)
+      printf("+++ ClientSocket::sendPacket client:%u, pakets:%u size:%u\n",
+             mClientId, mSentPackCount, mSentPackSize);
 }
 
 void ClientSocket::wakeClient() {

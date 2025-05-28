@@ -36,6 +36,9 @@ private:
     std::unique_ptr<QTcpSocket> mSocket = nullptr;
     const u_int                 mClientId = 0;
 
+    u_int                       mSentPackCount = 0;
+    u_int                       mSentPackSize = 0;
+
     QHostAddress virtAdapterIP  {"10.6.7.7"};
 
     using QueueElemType = std::unique_ptr<IPPacket>;

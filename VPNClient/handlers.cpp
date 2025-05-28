@@ -26,12 +26,10 @@ void VPNSocket::onConnected() {
     printf("+++ Send ClientHello\n");
 
     VpnClientHello vch;
-/////////    for(int i = 0; i < 5; ++i)
-        mTcpSocket->write((const char*) &vch, sizeof vch);
+    mTcpSocket->write((const char*) &vch, sizeof vch);
 }
 
 void VPNSocket::onReadyRead() {
-    printf("VPNSocket::onReadyRead()\n");
     QByteArray vpnData = mTcpSocket->readAll();
     char* start  = vpnData.data();
     auto* record = start;
@@ -78,8 +76,8 @@ bool VPNSocket::event(QEvent *event) {
     if (event->type() == VirtReceiveEvent::EventType) {
 
         static int eventCount = 0;
-        if (++eventCount % 50 == 0)
-            printf("+++ %d VirtReceiveEvent! %p\n", eventCount, QThread::currentThread());
+        ////if (++eventCount % 50 == 0)
+        ////    printf("+++ %d VirtReceiveEvent! %p\n", eventCount, QThread::currentThread());
 
         sendReceivedVirtPackets();
         return true;
@@ -144,7 +142,7 @@ void VirtReceiver::run() {
                 QMutexLocker vrl (&cdata.virtReceiveMutex);
 
                 if (++packetCount % 50 == 0)
-                    printf("VirtReceiver: %d packets received %p\n", packetCount, QThread::currentThread());
+                    printf("VirtReceiver: %d packets received\n", packetCount);
 
                 cdata.virtReceiveQueue.push(std::make_unique<IPPacket>(packet, packetSize));
                 ///cdata.virtReceiveWC.wakeAll();
