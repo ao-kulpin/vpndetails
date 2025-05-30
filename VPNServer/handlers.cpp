@@ -27,6 +27,7 @@ ClientSocket::ClientSocket(QTcpSocket* _socket, u_int clientId, QObject *parent)
 
 void ClientSocket::onReadyRead() {
     /// printf("ClientSocket::onReadyRead()\n");
+    ++ sdata.serverTimer;
     QByteArray clientData = mSocket->readAll();
     char* start  = clientData.data();
     auto* record = start;
@@ -57,7 +58,7 @@ void ClientSocket::onReadyRead() {
 
             auto packet = ProtoBuilder::decomposeIPacket(*vip);
 
-            if (updatePacket(*packet)) {
+            if (updateClientPacket(*packet)) {
               // put packet into queue
 
               QMutexLocker crl (&sdata.clientReceiveMutex);
@@ -76,7 +77,7 @@ void ClientSocket::onReadyRead() {
     }
 }
 
-bool ClientSocket::updatePacket (IPPacket& _packet) {
+bool ClientSocket::updateClientPacket (IPPacket& _packet) {
     auto* iph = _packet.header();
 
     if (iph->srcAddr != htonl(virtAdapterIP.toIPv4Address())) {
@@ -103,8 +104,43 @@ bool ClientSocket::updatePacket (IPPacket& _packet) {
     }
     break;
 
-    default:
-        break;
+    default: {
+        // any protocol
+
+        auto& rmap = sdata.requestMap;
+        ClientRequestKey crk;
+        crk.destIp = ntohl(iph->destAddr);
+        crk.proto = iph->proto;
+
+        ClientRequestVector* crv = nullptr;
+
+        if(rmap.count(crk))
+          crv = rmap[crk].get();
+        else {
+            crv = new ClientRequestVector;
+            rmap[crk] = std::unique_ptr<ClientRequestVector>(crv);
+        }
+
+        assert(crv);
+
+        auto rinfo = std::find_if(crv->begin(), crv->end(),
+                     [&](const auto& elem)->bool {
+                         return elem.clientId == mClientId;
+                      }
+        );
+
+        if (rinfo == crv->end()) {
+            ClientRequestInfo newElem;
+            newElem.clientId = mClientId;
+            crv->push_back(newElem);
+            rinfo = crv->end() - 1;
+        }
+
+        assert(rinfo != crv->end());
+        rinfo->clientTime = sdata.serverTimer;
+
+    }
+    break;
     }
 
     _packet.updateChecksum();
@@ -147,6 +183,7 @@ void ClientSocket::takeFromReceiver(IPPacket& _packet) {
 
 bool ClientSocket::event(QEvent *event) {
   if (event->type() == ClientReceiveEvent::EventType) {
+        ++ sdata.serverTimer;
         sendReceivedPackets();
         return true;
     }
@@ -419,6 +456,25 @@ ClientSocket* RealReceiver::findTargetClient(const IPPacket& _packet) {
         assert(sdata.socketMap.count(clientId));
 
         return sdata.socketMap[clientId];
+    } else {
+        // any protocol
+
+        auto& rmap = sdata.requestMap;
+        ClientRequestKey crk;
+        crk.destIp = ntohl(iph->destAddr);
+        crk.proto = iph->proto;
+
+        if (rmap.count(crk)) {
+          auto* requestVector = rmap[crk].get();
+
+          if (requestVector->size() != 1)
+              printf("+++ Request Vector size %zu\n", requestVector->size());
+
+          auto& lastRequest = requestVector->back();
+          lastRequest.serverTime = sdata.serverTimer;
+
+          return sdata.socketMap[lastRequest.clientId];
+        }
     }
 
     return nullptr;
@@ -434,6 +490,12 @@ bool operator < (const PortKey& lhs, const PortKey& rhs) {
     else
         return lhs.clientPort < rhs.clientPort;
 }
+
+bool operator < (const ClientRequestKey& lhs, const ClientRequestKey& rhs) {
+    return lhs.destIp == rhs.destIp ? lhs.proto < rhs.proto
+                                    : lhs.destIp < rhs.destIp;
+}
+
 
 u_short PortProvider::get() {
     if (mPort >= PortMax)

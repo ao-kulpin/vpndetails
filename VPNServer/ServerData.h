@@ -31,6 +31,24 @@ struct PortInfo {
     u_short     serverPort;
 };
 
+class ClientRequestKey {
+public:
+    IPAddr      destIp = 0;
+    u_short     proto = 0;
+};
+
+bool operator < (const ClientRequestKey& lhs, const ClientRequestKey& rhs);
+
+class ClientRequestInfo {
+public:
+    u_int       clientId = 0;
+    u_int       answerCount = 0;
+    u_int64     serverTime = 0,
+                clientTime = 0;
+};
+
+using ClientRequestVector = std::vector<ClientRequestInfo>;
+
 class PortProvider {
 public:
     static const int PortMin = 49152, PortMax = 0xFFFF;
@@ -45,6 +63,7 @@ class ClientSocket;
 class ServerData {
 public:
     std::atomic<u_int>          clientCount {0};
+    std::atomic<u_int64>        serverTimer {0};
     u_short                     serverPort {55555};
 ///    QHostAddress                realAdapterIP {"192.168.0.103"};
     QHostAddress                realAdapterIP {"192.168.8.102"};
@@ -53,6 +72,8 @@ public:
     std::map<PortKey, PortInfo> clientPortMap;
     std::map<u_short, PortInfo> serverPortMap;
     std::map<u_int, ClientSocket*> socketMap; // clientId -> clientSocket
+
+    std::map<ClientRequestKey, std::unique_ptr<ClientRequestVector>> requestMap;
 
     using QueueElemType = std::unique_ptr<IPPacket>;
     std::queue<QueueElemType>   clientReceiveQueue;

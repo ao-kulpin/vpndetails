@@ -26,7 +26,7 @@ public:
     u_int clientId()            { return mClientId; }
     QHostAddress                localAddress();
 private:
-    bool                        updatePacket (IPPacket& _packet);
+    bool                        updateClientPacket (IPPacket& _packet);
     void                        onReadyRead();
     u_short                     getServerPort(u_short clientPort);
     void                        sendReceivedPackets();
