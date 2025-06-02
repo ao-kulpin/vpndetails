@@ -1,9 +1,15 @@
 #ifndef ADAPTERADDR_H
 #define ADAPTERADDR_H
 
+#ifdef _WIN32
 #include <winsock2.h>
 #include <windows.h>
 #include <iphlpapi.h>
+#endif
+
+#ifdef __linux__
+#include "vpntypes.h"
+#endif
 
 #include <memory>
 
