@@ -33,7 +33,8 @@ public:
     u_int        connectTime    { 2000 };
     u_int        clientId       { 0 };
     QHostAddress virtAdapterIP  {"10.6.7.7"};
-    QHostAddress realAdapterIP  {"192.168.8.102"};
+    QHostAddress realAdapterIP  {"192.168.0.104"};
+///    QHostAddress realAdapterIP  {"192.168.8.102"};
     int          virtAdapterMaskLen {24};
 
     HANDLE       quitEvent      {0};

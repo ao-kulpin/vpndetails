@@ -27,17 +27,19 @@ public:
     QHostAddress                localAddress();
 private:
     bool                        updateClientPacket (IPPacket& _packet);
+    bool                        updateServerPacket (IPPacket& _packet);
     void                        onReadyRead();
+    u_short                     getClientPort(u_short serverPort);
     u_short                     getServerPort(u_short clientPort);
     void                        sendReceivedPackets();
-    void                        sendPacket(const IPPacket& _packet);
+    void                        sendServerPacket(const IPPacket& _packet);
     void                        wakeClient();
 
     std::unique_ptr<QTcpSocket> mSocket = nullptr;
     const u_int                 mClientId = 0;
 
-    u_int                       mSentPackCount = 0;
-    u_int                       mSentPackSize = 0;
+    u_int                       mSentServerPackCount = 0;
+    u_int64                     mSentServerPackSize = 0;
 
     QHostAddress virtAdapterIP  {"10.6.7.7"};
 
@@ -85,7 +87,8 @@ class RealReceiver : public QThread
 
     ClientSocket* findTargetClient(const IPPacket& _packet);
 
-    int     mPacketCount = 0;
+    u_int   mPacketCount = 0;
+    u_int64 mPacketSize  = 0;
     pcap_t* mPcapHandle  = nullptr;
 
 public:

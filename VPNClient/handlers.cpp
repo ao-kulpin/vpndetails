@@ -3,6 +3,8 @@
 #include "handlers.h"
 #include "ProtoBuilder.h"
 
+#include "ClientData.h"
+
 VPNSocket::VPNSocket(QObject *parent) :
     QObject(parent)
 {
@@ -133,7 +135,8 @@ VirtReceiver::VirtReceiver() {}
 void VirtReceiver::run() {
     HANDLE events[] = {cdata.quitEvent, WinTunLib::getReadWaitEvent(cdata.session)};
 
-    int packetCount = 0;
+    u_int packetCount = 0;
+    u_int64 packetTotalSize = 0;
     while(!cdata.haveQuit) {
         DWORD packetSize = 0;
         BYTE* packet = WinTunLib::receivePacket(cdata.session, &packetSize);
@@ -141,16 +144,17 @@ void VirtReceiver::run() {
             {
                 QMutexLocker vrl (&cdata.virtReceiveMutex);
 
-                if (++packetCount % 50 == 0)
-                    printf("VirtReceiver: %d packets received\n", packetCount);
-
                 cdata.virtReceiveQueue.push(std::make_unique<IPPacket>(packet, packetSize));
                 ///cdata.virtReceiveWC.wakeAll();
                 wakeSender();
+
+                ++packetCount;
+                packetTotalSize += ntohs(((IPHeader*) packet)->totalLen);
+                if (packetCount % 100 == 0)
+                    printf("Virtual Receiver: packets: %u size: %llu MB\n", packetCount, packetTotalSize >> 20);
             }
 
             WinTunLib::releaseReceivePacket(cdata.session, packet);
-
         }
         else {
             switch (GetLastError())
@@ -168,7 +172,8 @@ void VirtReceiver::run() {
             }
         }
     }
-    printf("Virtual Receiver thread edned (%d packets handled)\n", packetCount);
+
+    printf("Virtual Receiver thread edned (read %d packets, %llu MB)\n", packetCount, packetTotalSize >> 20);
     wakeSender();
 }
 
@@ -177,7 +182,8 @@ void VirtReceiver::wakeSender() {
 }
 
 void VirtSender::run() {
-    int packetCount = 0;
+    u_int packetCount = 0;
+    u_int64 packetSize = 0;
 
     while (true) {
         auto& inputQueue = cdata.serverReceiveQueue;
@@ -200,15 +206,18 @@ void VirtSender::run() {
 
         if (updatePacket(packet)) {
             if (send(packet)) {
-                if (++packetCount % 50 == 0)
-                    printf("VirtSender: %d real packets sent\n", packetCount);
+                ++packetCount;
+                packetSize += ntohs(packet.header()->totalLen);
+                if (packetCount % 100 == 0)
+                    printf("Virtual Sender: packets: %u size: %llu MB\n", packetCount, packetSize >> 20);
             } else {
                 static int failCount = 0;
                 printf ("+++ VirtSender:send() fails %d\n", ++failCount);
             }
         }
     }
-    printf("Virtual Sender thread edned (%d packets handled)\n", packetCount);
+
+    printf("Virtual Sender: thread edned (sent %d packets, %llu MB)\n", packetCount, packetSize >> 20);
 }
 
 bool VirtSender::updatePacket(IPPacket& _packet) {

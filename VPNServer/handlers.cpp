@@ -16,6 +16,17 @@
 
 #include <pcap.h>
 
+static
+    void headPrint(const IPHeader* header, char* outBuf) {
+    char src_s[INET_ADDRSTRLEN];
+    char dest_s[INET_ADDRSTRLEN];
+
+    inet_ntop(AF_INET, (void*) &header->srcAddr, src_s, sizeof src_s);
+    inet_ntop(AF_INET, (void*) &header->destAddr, dest_s, sizeof dest_s);
+
+    sprintf(outBuf, "%s->%s (%d) len=%d", src_s, dest_s, header->proto, ntohs(header->totalLen));
+}
+
 ClientSocket::ClientSocket(QTcpSocket* _socket, u_int clientId, QObject *parent) :
     QObject(parent),
     mSocket(_socket),
@@ -92,15 +103,15 @@ bool ClientSocket::updateClientPacket (IPPacket& _packet) {
     switch(iph->proto) {
     case IPPROTO_UDP: {
         auto* uph = _packet.udpHeader();
-        auto sport = uph->sport;
-        uph->sport = getServerPort(sport);
+        auto sport = ntohs(uph->sport);
+        uph->sport = htons(getServerPort(sport));
     }
     break;
 
     case IPPROTO_TCP: {
         auto* tch = _packet.tcpHeader();
-        auto sport = tch->sport;
-        tch->sport = getServerPort(sport);
+        auto sport = ntohs(tch->sport);
+        tch->sport = htons(getServerPort(sport));
     }
     break;
 
@@ -145,6 +156,14 @@ bool ClientSocket::updateClientPacket (IPPacket& _packet) {
 
     _packet.updateChecksum();
     return true;
+}
+
+u_short ClientSocket::getClientPort(u_short serverPort) {
+    auto& portMap = sdata.serverPortMap;
+    if (portMap.count(serverPort))
+        return portMap[serverPort].clientPort;
+    else
+        return 0;
 }
 
 u_short ClientSocket::getServerPort(u_short clientPort) {
@@ -209,19 +228,52 @@ void ClientSocket::sendReceivedPackets() {
 
         rql.unlock();
 
-        sendPacket(packet);
+        if (updateServerPacket(packet))
+          sendServerPacket(packet);
     }
 }
 
-void ClientSocket::sendPacket(const IPPacket& _packet) {
+bool ClientSocket::updateServerPacket (IPPacket& _packet) {
+    IPHeader* iph = _packet.header();
+    iph->destAddr = htonl(virtAdapterIP.toIPv4Address());
+
+    switch(iph->proto) {
+    case IPPROTO_UDP: {
+        auto* uph = _packet.udpHeader();
+        auto dport = ntohs(uph->dport);
+        uph->dport = htons(getClientPort(dport));
+        ////uph->updateChecksum(*iph);
+    }
+    break;
+
+    case IPPROTO_TCP: {
+        auto* tch = _packet.tcpHeader();
+        auto dport = ntohs(tch->dport);
+        tch->dport = htons(getClientPort(dport));
+        ///////////tch->updateChecksum(*iph);
+    }
+    break;
+
+    default:
+    break;
+    }
+
+    _packet.updateChecksum();
+
+    return true;
+}
+
+void ClientSocket::sendServerPacket(const IPPacket& _packet) {
     u_int sentSize = 0;
     auto vip = ProtoBuilder::composeIPacket(_packet, mClientId, &sentSize);
     mSocket->write((const char*) vip.get(), sentSize);
-    ++mSentPackCount;
-    mSentPackSize += sentSize;
-    if (mSentPackCount % 50 == 0)
-      printf("+++ ClientSocket::sendPacket client:%u, pakets:%u size:%u\n",
-             mClientId, mSentPackCount, mSentPackSize);
+    ++mSentServerPackCount;
+    const auto totalLen = ntohs(_packet.header()->totalLen);
+    mSentServerPackSize += totalLen;
+    if (mSentServerPackCount % 100 == 0) {
+      printf("*** Sent to Cliend: id:%u, pakets:%u total size:%llu MB\n",
+             mClientId, mSentServerPackCount, mSentServerPackSize >> 20);
+    }
 }
 
 void ClientSocket::wakeClient() {
@@ -236,7 +288,8 @@ QHostAddress ClientSocket::localAddress() {
 
 
 void RealSender::run() {
-    int packetCount = 0;
+    u_int   packetCount = 0;
+    u_int64 packetSize = 0;
 
     while (true) {
         auto& inputQueue = sdata.clientReceiveQueue;
@@ -261,14 +314,16 @@ void RealSender::run() {
         static int fail = 0;
         static int succ = 0;
         if (send(packet)) {
-          if (++packetCount % 50 == 0)
-            printf("Real Sender: %d packets sent\n", packetCount);
+          ++packetCount;
+          packetSize += ntohs(packet.header()->totalLen);
+          if (packetCount % 100 == 0)
+            printf("Real Sender: packets: %u size: %llu MB\n", packetCount, packetSize >> 20);
         }
         else
           printf ("+++ send() fails %d\n", ++fail);
     }
 
-    printf("Real Sender: thread edned (%d packets handled)\n", packetCount);
+    printf("Real Sender: thread edned (sent %d packets, %llu MB)\n", packetCount, packetSize >> 20);
 }
 
 bool RealSender::openAdapter() {
@@ -370,14 +425,17 @@ void RealReceiver::pcapHandler(const pcap_pkthdr *header, const u_char *pkt_data
     const auto* eh  = reinterpret_cast<const EthernetHeader*> (pkt_data);
     const auto* iph = reinterpret_cast<const IPHeader*> (pkt_data + eh->size());
 
-    if (++mPacketCount % 50 == 0)
-        printf("RealReceiver: %d real received\n", mPacketCount);
-
     if((iph->ver_ihl >> 4) != 4)
         // take only IPv4 packets
         return;
 
-    IPPacket packet((const u_char*) iph, ntohs(iph->totalLen));
+    ++mPacketCount;
+    const auto totalLen = ntohs(iph->totalLen);
+    mPacketSize += totalLen;
+    if (mPacketCount % 100 == 0)
+      printf("Real Receiver: packets: %u size: %llu MB\n", mPacketCount, mPacketSize >> 20);
+
+    IPPacket packet((const u_char*) iph, totalLen);
 
     auto* targetClient = findTargetClient(packet);
     if (targetClient)
@@ -385,7 +443,6 @@ void RealReceiver::pcapHandler(const pcap_pkthdr *header, const u_char *pkt_data
 }
 
 void RealReceiver::run() {
-    printf("+++ RealReceiver starts\n");
     pcap_if_t *alldevs = nullptr;
     char errbuf[PCAP_ERRBUF_SIZE+1] = {0};
 
@@ -411,7 +468,6 @@ void RealReceiver::run() {
                                              1000,             // read timeout
                                              errbuf			// error buffer
                                              );
-                printf("pcap_open_live(%p) succeed\n", mPcapHandle);
                 found = true;
             }
         }
@@ -427,7 +483,7 @@ void RealReceiver::run() {
     pcap_close(mPcapHandle);
     mPcapHandle = nullptr;
 
-    printf("Real Receiver thread edned (%d packets handled)\n", mPacketCount);
+    printf("Real Receiver thread edned (read %d packets, %llu MB)\n", mPacketCount, mPacketSize >> 20);
 }
 
 ClientSocket* RealReceiver::findTargetClient(const IPPacket& _packet) {
@@ -439,11 +495,11 @@ ClientSocket* RealReceiver::findTargetClient(const IPPacket& _packet) {
     int destPort = -1;
     switch(iph->proto) {
     case IPPROTO_UDP:
-        destPort = _packet.udpHeader()->dport;
+        destPort = ntohs(_packet.udpHeader()->dport);
         break;
 
     case IPPROTO_TCP:
-        destPort = _packet.tcpHeader()->dport;
+        destPort = ntohs(_packet.tcpHeader()->dport);
         break;
 
     default:
@@ -451,17 +507,17 @@ ClientSocket* RealReceiver::findTargetClient(const IPPacket& _packet) {
     }
 
     if (destPort != -1 && sdata.serverPortMap.count(destPort)) {
-        auto clientId = sdata.serverPortMap[destPort].clientId;
+        auto& pi = sdata.serverPortMap[destPort];
 
-        assert(sdata.socketMap.count(clientId));
+        assert(sdata.socketMap.count(pi.clientId));
 
-        return sdata.socketMap[clientId];
+        return sdata.socketMap[pi.clientId];
     } else {
         // any protocol
 
         auto& rmap = sdata.requestMap;
         ClientRequestKey crk;
-        crk.destIp = ntohl(iph->destAddr);
+        crk.destIp = ntohl(iph->srcAddr);
         crk.proto = iph->proto;
 
         if (rmap.count(crk)) {
