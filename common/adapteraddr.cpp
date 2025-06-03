@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include "adapteraddr.h"
 
+#ifdef _WIN32
+
 bool AdapterAddr::getMacAddress(IPAddr destIP, u_char macAddress[]) {
     memset(macAddress, 0, 6);
     for (auto* adapt = getAdapts(); adapt; adapt = adapt->Next) {
@@ -66,4 +68,6 @@ IP_ADAPTER_ADDRESSES* AdapterAddr::getAdapts() {
     }
     return mAdaptList.get();
 }
+
+#endif // _WIN32
 

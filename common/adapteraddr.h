@@ -25,11 +25,16 @@ public:
     bool getGatewayIP(IPAddr ip, IPAddr *gatewayIP);
 
 private:
+
+#ifdef _WIN32
+
     static
     IP_ADAPTER_ADDRESSES* getAdapts();
 
     static
     std::unique_ptr<IP_ADAPTER_ADDRESSES> mAdaptList;
+
+#endif
 };
 
 #endif // ADAPTERADDR_H
