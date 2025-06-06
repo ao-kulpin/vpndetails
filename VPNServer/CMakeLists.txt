@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
+set(CMAKE_BUILD_WITH_INSTALL_RPATH ON)
 
 project(VPNServer LANGUAGES CXX)
 

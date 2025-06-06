@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <string.h>
 #include "adapteraddr.h"
 
 #ifdef _WIN32
@@ -70,4 +71,30 @@ IP_ADAPTER_ADDRESSES* AdapterAddr::getAdapts() {
 }
 
 #endif // _WIN32
+
+#ifdef __linux__
+
+bool AdapterAddr::getMacAddress(IPAddr destIP, u_char macAddress[]) {
+    memset(macAddress, 0, 6);
+
+    for (auto* adapt = getAdapts(); adapt; adapt = adapt->ifa_next) {
+        if (adapt->ifa_addr && adapt->ifa_addr->sa_family == AF_PACKET      // Ethernet
+            && ((sockaddr_in*) adapt->ifa_addr)->sin_addr.s_addr == destIP) {
+            memcpy(macAddress, adapt->ifa_addr->sa_data, 6);
+            return true;
+        }
+    }
+    return false;
+}
+
+
+ifaddrs*  AdapterAddr::getAdapts() {
+    if (!mAdaptList) {
+         if (getifaddrs(&mAdaptList) == -1)
+            mAdaptList = nullptr;
+    }
+    return mAdaptList;
+}
+
+#endif // __linux__
 

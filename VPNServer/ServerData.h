@@ -1,9 +1,13 @@
 #ifndef SERVERDATA_H
 #define SERVERDATA_H
 
+#ifdef _WIN32
+
 #include <winsock2.h>
 #include <windows.h>
 #include <iphlpapi.h>
+
+#endif // _WIN32
 
 #include <QHostAddress>
 #include <QMutex>

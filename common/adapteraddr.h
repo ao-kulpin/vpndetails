@@ -8,6 +8,13 @@
 #endif
 
 #ifdef __linux__
+#include <sys/types.h>
+#include <ifaddrs.h>
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <net/if.h>
+#include <unistd.h>
+
 #include "vpntypes.h"
 #endif
 
@@ -17,7 +24,7 @@ class AdapterAddr
 {
 public:
     static
-    bool getMacAddress(IPAddr destIP, u_char macAddres[]);
+    bool getMacAddress(IPAddr destIP, u_char macAddress[]);
     static
     bool getGatewayMacAddress(IPAddr _destIP, u_char _macAddress[]);
 
@@ -34,7 +41,17 @@ private:
     static
     std::unique_ptr<IP_ADAPTER_ADDRESSES> mAdaptList;
 
-#endif
+#endif // _WIN32
+
+#ifdef __linux__
+
+    static
+    ifaddrs*        getAdapts();
+
+    static
+    ifaddrs*        mAdaptList;
+
+#endif //__linux__
 };
 
 #endif // ADAPTERADDR_H
