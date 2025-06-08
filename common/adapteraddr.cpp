@@ -1,6 +1,18 @@
 #include <stdio.h>
 #include <string.h>
 #include "adapteraddr.h"
+#include "killer.h"
+#include "protocol.h"
+
+#ifdef __linux__
+
+#include <unistd.h>
+#include <sys/ioctl.h>
+#include <arpa/inet.h>
+#include <sys/socket.h>
+#include <netinet/if_ether.h>
+
+#endif // __linux__
 
 #ifdef _WIN32
 
@@ -87,6 +99,50 @@ bool AdapterAddr::getMacAddress(IPAddr destIP, u_char macAddress[]) {
     return false;
 }
 
+bool AdapterAddr::getGatewayMacAddress(IPAddr _srcIP, IPAddr _destIP, u_char _macAddress[]) {
+
+    ifreq ifr;
+    memset(&ifr, 0, sizeof ifr);
+    if (!getAdaptName(_srcIP, ifr.ifr_name))
+        return false;
+
+    int sockFd = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ARP));
+    if (sockFd == -1)
+        return false;
+
+    Killer sfk ([&] { close(sockFd); });
+
+    if (ioctl(sockFd, SIOCGIFHWADDR, &ifr) == -1)
+        return false;
+
+    ether_arp arp_req;
+    memset(&arp_req, 0, sizeof(arp_req));
+    memcpy(arp_req.arp_sha, ifr.ifr_hwaddr.sa_data, ETH_ALEN);
+
+    *(IPAddr*) &arp_req.arp_spa = htonl(_srcIP);
+    *(IPAddr*) &arp_req.arp_tpa = htonl(_destIP);
+
+    arp_req.arp_op = htons(ARPOP_REQUEST);
+
+    const u_int BufSize = sizeof(EthernetHeader) + sizeof(ether_arp);
+    u_char reqBuf[BufSize];
+    auto* eth = (EthernetHeader*) reqBuf;
+    auto* arp = (ether_arp*) (reqBuf + sizeof(EthernetHeader));
+
+    memset(&reqBuf, 0, sizeof reqBuf);
+    memcpy(eth->srcMac, arp_req.arp_sha, ETH_ALEN);
+    memset(eth->destMac, 0xFF, ETH_ALEN);       // broadcast
+
+    memcpy(arp, &arp_req, sizeof arp_req);
+
+    sockaddr sll;
+    memset(&sll, 0, sizeof sll);
+    memcpy(sll.sa_data, arp_req.arp_sha, sizeof(sll.sa_data));
+
+
+
+    return true;
+}
 
 ifaddrs*  AdapterAddr::getAdapts() {
     if (!mAdaptList) {

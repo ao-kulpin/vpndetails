@@ -26,7 +26,7 @@ public:
     static
     bool getMacAddress(IPAddr destIP, u_char macAddress[]);
     static
-    bool getGatewayMacAddress(IPAddr _destIP, u_char _macAddress[]);
+    bool getGatewayMacAddress(IPAddr _srcIP, IPAddr _destIP, u_char _macAddress[]);
 
     static
     bool getGatewayIP(IPAddr ip, IPAddr *gatewayIP);
@@ -47,6 +47,8 @@ private:
 
     static
     ifaddrs*        getAdapts();
+    static
+    bool            getAdaptName(IPAddr destIP, char nam[]);
 
     static
     ifaddrs*        mAdaptList;
