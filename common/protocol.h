@@ -7,6 +7,12 @@
 
 #endif // _WIN32
 
+#ifdef __linux__
+
+#include <netinet/in.h>
+
+#endif // __linux__
+
 #include <QVector>
 
 struct IPHeader{

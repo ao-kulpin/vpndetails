@@ -19,6 +19,7 @@
 #include <memory>
 
 #include "protocol.h"
+#include "vpntypes.h"
 
 struct PortKey {
     u_int       clientId;
@@ -85,6 +86,13 @@ public:
     QWaitCondition              clientReceiveWC;
 
     PortProvider                portProvider;
+
+#ifdef __linux__
+
+    qint64                      arpTime {2000}; // ms
+
+#endif //  __linux__
+
 };
 
 extern ServerData sdata;

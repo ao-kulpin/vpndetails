@@ -3,6 +3,7 @@
 #include "adapteraddr.h"
 #include "killer.h"
 #include "protocol.h"
+#include "ServerData.h"
 
 #ifdef __linux__
 
@@ -11,6 +12,9 @@
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <netinet/if_ether.h>
+#include <linux/if_packet.h>
+
+#include <QDateTime>
 
 #endif // __linux__
 
@@ -110,7 +114,15 @@ bool AdapterAddr::getGatewayMacAddress(IPAddr _srcIP, IPAddr _destIP, u_char _ma
     if (sockFd == -1)
         return false;
 
+
     Killer sfk ([&] { close(sockFd); });
+
+    struct timeval timeout;
+    timeout.tv_sec = sdata.arpTime / 1000;
+    timeout.tv_usec = sdata.arpTime % 1000;
+
+    if (setsockopt(sockFd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0)
+        return false;
 
     if (ioctl(sockFd, SIOCGIFHWADDR, &ifr) == -1)
         return false;
@@ -135,13 +147,41 @@ bool AdapterAddr::getGatewayMacAddress(IPAddr _srcIP, IPAddr _destIP, u_char _ma
 
     memcpy(arp, &arp_req, sizeof arp_req);
 
-    sockaddr sll;
-    memset(&sll, 0, sizeof sll);
-    memcpy(sll.sa_data, arp_req.arp_sha, sizeof(sll.sa_data));
+    sockaddr_ll sendAddr;
+    memset(&sendAddr, 0, sizeof sendAddr);
+    sendAddr.sll_ifindex = if_nametoindex(ifr.ifr_name);
 
+    // Send ARP request
+    if (sendto(sockFd, reqBuf, BufSize, 0, (sockaddr*) &sendAddr, sizeof(sendAddr)) == -1)
+        return false;
 
+    // Receive ARP reply
 
-    return true;
+    u_char replyBuf[2048];
+    auto replyStart = QDateTime::currentMSecsSinceEpoch();
+
+    while (true) {
+        auto received = recv(sockFd, replyBuf, sizeof replyBuf, 0);
+
+        if (received < 0)
+            return false;
+
+        auto* eh = (ether_header*) replyBuf;
+        auto* ea = (ether_arp*) (replyBuf + sizeof(ether_header));
+
+        if (ntohs(eh->ether_type) == ETHERTYPE_ARP
+            && ntohs(ea->arp_op) == ARPOP_RREPLY) {
+            memcpy(_macAddress, ea->arp_sha, ETH_ALEN);
+            return true;
+        }
+
+        if (QDateTime::currentMSecsSinceEpoch() - replyStart > sdata.arpTime)
+            //time out
+            return false;
+
+        usleep(100000); // prevent CPU overloading
+    }
+    return false;
 }
 
 ifaddrs*  AdapterAddr::getAdapts() {
