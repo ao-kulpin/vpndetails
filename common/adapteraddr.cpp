@@ -15,6 +15,8 @@
 #include <linux/if_packet.h>
 
 #include <QDateTime>
+#include <QFile>
+#include <QTextStream>
 
 #endif // __linux__
 
@@ -97,6 +99,37 @@ bool AdapterAddr::getMacAddress(IPAddr destIP, u_char macAddress[]) {
         if (adapt->ifa_addr && adapt->ifa_addr->sa_family == AF_PACKET      // Ethernet
             && ((sockaddr_in*) adapt->ifa_addr)->sin_addr.s_addr == destIP) {
             memcpy(macAddress, adapt->ifa_addr->sa_data, 6);
+            return true;
+        }
+    }
+    return false;
+}
+
+bool AdapterAddr::getGatewayIP(IPAddr adaptIp, IPAddr *gatewayIP) {
+    char adaptName[256];
+    if (!getAdaptName(adaptIp, adaptName))
+        return false;
+
+    QFile routeFile("/proc/net/route");
+
+    if (!routeFile.open(QIODevice::ReadOnly | QIODevice::Text))
+        return false;
+
+    Killer rfk ([&] { routeFile.close(); });
+
+    QTextStream routeStream(&routeFile);
+    while (!routeStream.atEnd()) {
+        QString line = routeStream.readLine();
+        QTextStream lineStream(&line);
+        QString iFace, destination, gateway;
+        u_long flags;
+        lineStream >> iFace >> destination >> gateway >> flags;
+
+        if (iFace == adaptName
+            && destination == "00000000"
+            && gateway != "00000000") {
+
+            *gatewayIP = ntohl(strtoul(gateway.toStdString().c_str(), 0, 16));
             return true;
         }
     }
@@ -190,6 +223,19 @@ ifaddrs*  AdapterAddr::getAdapts() {
             mAdaptList = nullptr;
     }
     return mAdaptList;
+}
+
+bool AdapterAddr::getAdaptName(IPAddr destIP, char name[]) {
+    for (auto* adapt = getAdapts(); adapt; adapt = adapt->ifa_next) {
+        if (adapt->ifa_addr && adapt->ifa_addr->sa_family == AF_PACKET      // Ethernet
+            && ((sockaddr_in*) adapt->ifa_addr)->sin_addr.s_addr == destIP) {
+            strcpy(name, adapt->ifa_name);
+            return true;
+        }
+    }
+    return false;
+
+
 }
 
 #endif // __linux__

@@ -48,7 +48,7 @@ private:
     static
     ifaddrs*        getAdapts();
     static
-    bool            getAdaptName(IPAddr destIP, char nam[]);
+    bool            getAdaptName(IPAddr destIP, char name[]);
 
     static
     ifaddrs*        mAdaptList;
