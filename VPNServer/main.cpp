@@ -1,6 +1,10 @@
+#if _WIN32
+
 #include <winsock2.h>
 #include <windows.h>
 #include <iphlpapi.h>
+
+#endif // _WIN32
 
 #include <QCoreApplication>
 #include <QTcpServer>
@@ -15,7 +19,17 @@
 
 ServerData sdata; // common data of the application
 
+#ifdef _WIN32
+
 std::unique_ptr<IP_ADAPTER_ADDRESSES> AdapterAddr::mAdaptList;
+
+#endif // _WIN32
+
+#ifdef __linux__
+
+ifaddrs* AdapterAddr::mAdaptList = nullptr;
+
+#endif // __linux__
 
 void signalHandler(int signum) {
     printf("\nTerminated by user\n");

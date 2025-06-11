@@ -70,8 +70,8 @@ public:
     std::atomic<u_int>          clientCount {0};
     std::atomic<u_int64>        serverTimer {0};
     u_short                     serverPort {55555};
-    QHostAddress                realAdapterIP {"192.168.0.104"};
-///    QHostAddress                realAdapterIP {"192.168.8.101"};
+///    QHostAddress                realAdapterIP {"192.168.0.104"};
+    QHostAddress                realAdapterIP {"192.168.8.102"};
     bool                        haveQuit {false};
 
     std::map<PortKey, PortInfo> clientPortMap;

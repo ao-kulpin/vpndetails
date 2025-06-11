@@ -106,7 +106,7 @@ bool AdapterAddr::getMacAddress(IPAddr destIP, u_char macAddress[]) {
 }
 
 bool AdapterAddr::getGatewayIP(IPAddr adaptIp, IPAddr *gatewayIP) {
-    char adaptName[256];
+    char adaptName[IFNAMSIZ];
     if (!getAdaptName(adaptIp, adaptName))
         return false;
 
@@ -234,8 +234,6 @@ bool AdapterAddr::getAdaptName(IPAddr destIP, char name[]) {
         }
     }
     return false;
-
-
 }
 
 #endif // __linux__

@@ -1,11 +1,13 @@
+#ifdef _WIN32
+
 #include <winsock2.h>
 #include <windows.h>
 #include <iphlpapi.h>
 
+#endif // _WIN32
+
 #include <QCoreApplication>
 #include <QTcpSocket>
-
-#include <iphlpapi.h>
 
 #include "handlers.h"
 #include "protocol.h"
@@ -354,7 +356,11 @@ bool RealSender::openAdapter() {
     u_char mac[6] = {0};
     for (auto* dev = alldevs; !found && dev; dev = dev->next) {
         for (auto* ap = dev->addresses; !found && ap; ap = ap->next) {
+#ifdef _WIN32
             IPAddr ip4 = ((sockaddr_in*) ap->addr)->sin_addr.S_un.S_addr;
+#else
+            IPAddr ip4 = ((sockaddr_in*) ap->addr)->sin_addr.s_addr;
+#endif
             if(ap->addr->sa_family == AF_INET && realIp == ip4) {
                 devName = dev->name;
 
@@ -365,7 +371,7 @@ bool RealSender::openAdapter() {
                 AdapterAddr::getGatewayIP(realIp, &mGatewayIP);
                 ///// ("+++ gatewayIP:%08X\n", mGatewayIP);
 
-                AdapterAddr::getGatewayMacAddress(mGatewayIP, mGatewayMac);
+                AdapterAddr::getGatewayMacAddress(realIp, mGatewayIP, mGatewayMac);
 
                 auto& gm = mGatewayMac;
                 ///////("+++ gateway mac: %02x %02x %02x %02x %02x %02x\n", gm[0], gm[1], gm[2], gm[3], gm[4], gm[5]);
@@ -459,7 +465,11 @@ void RealReceiver::run() {
     bool found = false;
     for (auto* dev = alldevs; !found && dev; dev = dev->next) {
         for (auto* ap = dev->addresses; !found && ap; ap = ap->next) {
+#ifdef _WIN32
             IPAddr ip4 = ((sockaddr_in*) ap->addr)->sin_addr.S_un.S_addr;
+#else
+            IPAddr ip4 = ((sockaddr_in*) ap->addr)->sin_addr.s_addr;
+#endif
             if(ap->addr->sa_family == AF_INET && realIp == ip4) {
                 mPcapHandle = pcap_open_live(dev->name,         // name of the device
                                              65536,			// portion of the packet to capture.
