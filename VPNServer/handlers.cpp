@@ -347,7 +347,7 @@ bool RealSender::openAdapter() {
         pcap_freealldevs(alldevs);
     });
 
-    const IPAddr   realIp    = htonl(sdata.realAdapterIP.toIPv4Address());
+    const IPAddr   realIp   = htonl(sdata.realAdapterIP.toIPv4Address());
     const QString realIpStr = sdata.realAdapterIP.toString();
     /////// printf("+++ realIp: %s %08lX\n", realIpStr.toUtf8().constData(), realIp);
 
@@ -366,15 +366,15 @@ bool RealSender::openAdapter() {
 
                 AdapterAddr::getMacAddress(realIp, mAdaptMac);
                 auto& m = mAdaptMac;
-                /////////("+++ mac: %02x %02x %02x %02x %02x %02x\n", m[0], m[1], m[2], m[3], m[4], m[5]);
+                printf("+++ mac: %02x %02x %02x %02x %02x %02x\n", m[0], m[1], m[2], m[3], m[4], m[5]);
 
                 AdapterAddr::getGatewayIP(realIp, &mGatewayIP);
-                ///// ("+++ gatewayIP:%08X\n", mGatewayIP);
+                printf ("+++ gatewayIP: %08X\n", mGatewayIP);
 
                 AdapterAddr::getGatewayMacAddress(realIp, mGatewayIP, mGatewayMac);
 
                 auto& gm = mGatewayMac;
-                ///////("+++ gateway mac: %02x %02x %02x %02x %02x %02x\n", gm[0], gm[1], gm[2], gm[3], gm[4], gm[5]);
+                printf("+++ gateway mac: %02x %02x %02x %02x %02x %02x\n", gm[0], gm[1], gm[2], gm[3], gm[4], gm[5]);
 
                 // Fill Ethernet header
 
