@@ -173,15 +173,20 @@ bool AdapterAddr::getGatewayIP(IPAddr adaptIp, IPAddr *gatewayIP) {
 }
 
 bool AdapterAddr::getGatewayMacAddress(IPAddr _srcIP, IPAddr _destIP, u_char _macAddress[]) {
+    printf("+++ getGatewayMacAddress 1\n");
 
     ifreq ifr;
     memset(&ifr, 0, sizeof ifr);
     if (!getAdaptName(_srcIP, ifr.ifr_name))
         return false;
+    printf("+++ getGatewayMacAddress 2 in=%s\n", ifr.ifr_name);
 
-    int sockFd = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ARP));
+////    int sockFd = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ARP));
+       int sockFd = socket(AF_PACKET, SOCK_RAW, htons (ETH_P_ALL));
+///    int sockFd = socket(PF_PACKET, SOCK_RAW, htons(ETH_P_ARP));
     if (sockFd == -1)
         return false;
+    printf("+++ getGatewayMacAddress 3 sockFd=%d\n", sockFd);
 
 
     Killer sfk ([&] { close(sockFd); });
@@ -192,18 +197,31 @@ bool AdapterAddr::getGatewayMacAddress(IPAddr _srcIP, IPAddr _destIP, u_char _ma
 
     if (setsockopt(sockFd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0)
         return false;
+    printf("+++ getGatewayMacAddress 4\n");
 
-    if (ioctl(sockFd, SIOCGIFHWADDR, &ifr) == -1)
+
+    if (ioctl(sockFd, SIOCGIFHWADDR, &ifr) < 0)
         return false;
+    printf("+++ getGatewayMacAddress 5\n");
+
+    auto& sd = ifr.ifr_hwaddr.sa_data;
+    printf("+++ getGatewayMacAddress mac: %02X %02X %02X %02X %02X %02X\n",
+           u_char(sd[0]), u_char(sd[1]), u_char(sd[2]), u_char(sd[3]), u_char(sd[4]), u_char(sd[5]));
 
     ether_arp arp_req;
     memset(&arp_req, 0, sizeof(arp_req));
+
+    arp_req.ea_hdr.ar_hrd = htons(1);
+    arp_req.ea_hdr.ar_pro = htons(ETH_P_IP);
+    arp_req.ea_hdr.ar_hln = 6;
+    arp_req.ea_hdr.ar_pln = 4;
+
+    arp_req.arp_op = htons(ARPOP_REQUEST);
+
     memcpy(arp_req.arp_sha, ifr.ifr_hwaddr.sa_data, ETH_ALEN);
 
     *(IPAddr*) &arp_req.arp_spa = htonl(_srcIP);
     *(IPAddr*) &arp_req.arp_tpa = htonl(_destIP);
-
-    arp_req.arp_op = htons(ARPOP_REQUEST);
 
     const u_int BufSize = sizeof(EthernetHeader) + sizeof(ether_arp);
     u_char reqBuf[BufSize];
@@ -213,6 +231,7 @@ bool AdapterAddr::getGatewayMacAddress(IPAddr _srcIP, IPAddr _destIP, u_char _ma
     memset(&reqBuf, 0, sizeof reqBuf);
     memcpy(eth->srcMac, arp_req.arp_sha, ETH_ALEN);
     memset(eth->destMac, 0xFF, ETH_ALEN);       // broadcast
+    eth->type = htons(ETH_P_ARP);
 
     memcpy(arp, &arp_req, sizeof arp_req);
 
@@ -220,9 +239,17 @@ bool AdapterAddr::getGatewayMacAddress(IPAddr _srcIP, IPAddr _destIP, u_char _ma
     memset(&sendAddr, 0, sizeof sendAddr);
     sendAddr.sll_ifindex = if_nametoindex(ifr.ifr_name);
 
+    printf("+++ getGatewayMacAddress sll_ifindex=%d\n", sendAddr.sll_ifindex);
+
+    sendAddr.sll_family   = AF_PACKET;
+    sendAddr.sll_protocol = htons(ETH_P_ARP);
+    sendAddr.sll_halen = ETH_ALEN;
+    memcpy(sendAddr.sll_addr, arp_req.arp_sha, ETH_ALEN);
+
     // Send ARP request
     if (sendto(sockFd, reqBuf, BufSize, 0, (sockaddr*) &sendAddr, sizeof(sendAddr)) == -1)
         return false;
+    printf("+++ getGatewayMacAddress 6\n");
 
     // Receive ARP reply
 
@@ -231,6 +258,7 @@ bool AdapterAddr::getGatewayMacAddress(IPAddr _srcIP, IPAddr _destIP, u_char _ma
 
     while (true) {
         auto received = recv(sockFd, replyBuf, sizeof replyBuf, 0);
+        printf("+++ getGatewayMacAddress 7 rec=%ld errno=%d\n", received, errno);
 
         if (received < 0)
             return false;
@@ -238,8 +266,12 @@ bool AdapterAddr::getGatewayMacAddress(IPAddr _srcIP, IPAddr _destIP, u_char _ma
         auto* eh = (ether_header*) replyBuf;
         auto* ea = (ether_arp*) (replyBuf + sizeof(ether_header));
 
+        printf("+++ ether_type %d (%04X) arp %d (%04X)\n",
+               ntohs(eh->ether_type), ntohs(eh->ether_type),
+               ntohs(ea->arp_op), ntohs(ea->arp_op));
+
         if (ntohs(eh->ether_type) == ETHERTYPE_ARP
-            && ntohs(ea->arp_op) == ARPOP_RREPLY) {
+            && ntohs(ea->arp_op) == ARPOP_REPLY) {
             memcpy(_macAddress, ea->arp_sha, ETH_ALEN);
             return true;
         }
