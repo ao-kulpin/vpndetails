@@ -10,6 +10,10 @@ set(CMAKE_AUTORCC ON)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+if (UNIX)
+  set(CMAKE_PREFIX_PATH "~/Qt/6.9.1/gcc_64")
+endif()
+
 find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Core)
 find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Core Network)
 
@@ -18,7 +22,8 @@ if (WIN32)
   link_directories(${CMAKE_CURRENT_SOURCE_DIR}/../common/Npcap)
 elseif(UNIX)
   find_library(PCAP_LIBRARY pcap REQUIRED)
-  include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/../common ${PCAP_LIBRARY})
+  find_path(PCAP_INCLUDE_DIR pcap.h REQUIRED)
+  include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/../common ${PCAP_INCLUDE_DIR})
 endif()
 
 add_executable(VPNServer
