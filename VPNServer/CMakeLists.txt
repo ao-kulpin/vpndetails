@@ -16,7 +16,7 @@ if (UNIX)
     else()
       set(CMAKE_PREFIX_PATH "~/Qt/6.9.1/gcc_64")
     endif()
-    # message(STATUS "CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH} la=${CMAKE_LIBRARY_ARCHITECTURE}")
+    ## message(STATUS "CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH} la=${CMAKE_LIBRARY_ARCHITECTURE}")
 endif()
 
 find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Core)

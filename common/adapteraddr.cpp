@@ -172,13 +172,16 @@ bool AdapterAddr::getGatewayIP(IPAddr adaptIp, IPAddr *gatewayIP) {
     return false;
 }
 
-bool AdapterAddr::getGatewayMacAddress(IPAddr _srcIP, IPAddr _destIP, u_char _macAddress[]) {
+bool AdapterAddr::getGatewayMacAddress(IPAddr _srcIp, IPAddr _destIp, u_char _macAddress[]) {
     ifreq ifr;
     memset(&ifr, 0, sizeof ifr);
-    if (!getAdaptName(_srcIP, ifr.ifr_name))
+    if (!getAdaptName(_srcIp, ifr.ifr_name))
         return false;
 
-printf("+++ getGatewayMacAddress 2 in=%s\n", ifr.ifr_name);
+printf("+++ getGatewayMacAddress 2 in=%s src %08X dest %08X\n", ifr.ifr_name, _srcIp, _destIp);
+
+    const IPAddr netSrcIp  = htonl(_srcIp);
+    const IPAddr netDestIp = htonl(_destIp);
 
     int sockFd = socket(AF_PACKET, SOCK_RAW, htons (ETH_P_ALL));
     if (sockFd == -1)
@@ -211,8 +214,8 @@ printf("+++ getGatewayMacAddress mac: %02X %02X %02X %02X %02X %02X\n",
     arp_req.arp_op = htons(ARPOP_REQUEST);
     memcpy(arp_req.arp_sha, ifr.ifr_hwaddr.sa_data, ETH_ALEN);
 
-    *(IPAddr*) &arp_req.arp_spa = htonl(_srcIP);
-    *(IPAddr*) &arp_req.arp_tpa = htonl(_destIP);
+    *(IPAddr*) &arp_req.arp_spa = netSrcIp;
+    *(IPAddr*) &arp_req.arp_tpa = netDestIp;
 
     const u_int BufSize = sizeof(EthernetHeader) + sizeof(ether_arp);
     u_char reqBuf[BufSize];
@@ -249,16 +252,23 @@ printf("+++ getGatewayMacAddress mac: %02X %02X %02X %02X %02X %02X\n",
 
     while (true) {
         auto received = recv(sockFd, replyBuf, sizeof replyBuf, 0);
-
+ printf("+++ getGatewayMacAddress() received=%ld\n", received);
         if (received < 0)
             return false;
 
         auto* eh = (ether_header*) replyBuf;
         auto* ea = (ether_arp*) (replyBuf + sizeof(ether_header));
+printf("+++ getGatewayMacAddress() type=%04X\n", ntohs(eh->ether_type));
 
         if (ntohs(eh->ether_type) == ETHERTYPE_ARP
-            && ntohs(ea->arp_op) == ARPOP_REPLY) {
+            && ntohs(ea->arp_op) == ARPOP_REPLY
+            && *(IPAddr*) &ea->arp_spa == netDestIp
+            && *(IPAddr*) &ea->arp_tpa == netSrcIp) {
+            // ARP replay
+
             memcpy(_macAddress, ea->arp_sha, ETH_ALEN);
+ printf("+++ Arp reply: source: %08X target: %08X\n",
+                   ntohl(*(IPAddr*) &ea->arp_spa), ntohl(*(IPAddr*) &ea->arp_tpa));
             return true;
         }
 
@@ -266,7 +276,7 @@ printf("+++ getGatewayMacAddress mac: %02X %02X %02X %02X %02X %02X\n",
             //time out
             return false;
 
-        usleep(100000); // prevent CPU overloading
+//        usleep(100000); // prevent CPU overloading
     }
     return false;
 }
@@ -279,12 +289,13 @@ ifaddrs*  AdapterAddr::getAdapts() {
     return mAdaptList;
 }
 
-bool AdapterAddr::getAdaptName(IPAddr destIP, char name[]) {
+bool AdapterAddr::getAdaptName(IPAddr destIp, char name[]) {
+    auto netDestIp = htonl(destIp);
     for (auto* adapt = getAdapts(); adapt; adapt = adapt->ifa_next) {
 ///        printf("+++ getAdaptName %08X %08X fam %d\n",
 ///               ((sockaddr_in*) adapt->ifa_addr)->sin_addr.s_addr, destIP, adapt->ifa_addr->sa_family);
         if (adapt->ifa_addr && checkFamily(adapt->ifa_addr->sa_family)      // Ethernet
-            && ((sockaddr_in*) adapt->ifa_addr)->sin_addr.s_addr == destIP) {
+            && ((sockaddr_in*) adapt->ifa_addr)->sin_addr.s_addr == netDestIp) {
             strcpy(name, adapt->ifa_name);
             return true;
         }

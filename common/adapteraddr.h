@@ -18,8 +18,6 @@
 #include "vpntypes.h"
 #endif
 
-#include <memory>
-
 class AdapterAddr
 {
 public:
@@ -48,7 +46,7 @@ private:
     static
     ifaddrs*        getAdapts();
     static
-    bool            getAdaptName(IPAddr destIP, char name[]);
+    bool            getAdaptName(IPAddr destIp, char name[]);
 
     static
     ifaddrs*        mAdaptList;

@@ -347,7 +347,8 @@ bool RealSender::openAdapter() {
         pcap_freealldevs(alldevs);
     });
 
-    const IPAddr   realIp   = htonl(sdata.realAdapterIP.toIPv4Address());
+    const IPAddr  realIp    = sdata.realAdapterIP.toIPv4Address();
+    const auto    netRealIp = htonl(realIp);
     const QString realIpStr = sdata.realAdapterIP.toString();
     /////// printf("+++ realIp: %s %08lX\n", realIpStr.toUtf8().constData(), realIp);
 
@@ -357,11 +358,11 @@ bool RealSender::openAdapter() {
     for (auto* dev = alldevs; !found && dev; dev = dev->next) {
         for (auto* ap = dev->addresses; !found && ap; ap = ap->next) {
 #ifdef _WIN32
-            IPAddr ip4 = ((sockaddr_in*) ap->addr)->sin_addr.S_un.S_addr;
+            IPAddr netIp4 = ((sockaddr_in*) ap->addr)->sin_addr.S_un.S_addr;
 #else
-            IPAddr ip4 = ((sockaddr_in*) ap->addr)->sin_addr.s_addr;
+            IPAddr netIp4 = ((sockaddr_in*) ap->addr)->sin_addr.s_addr;
 #endif
-            if(ap->addr->sa_family == AF_INET && realIp == ip4) {
+            if(ap->addr->sa_family == AF_INET && netRealIp == netIp4) {
                 devName = dev->name;
 
                 AdapterAddr::getMacAddress(realIp, mAdaptMac);
@@ -461,7 +462,7 @@ void RealReceiver::run() {
         pcap_freealldevs(alldevs);
     });
 
-    const IPAddr realIp  = htonl(sdata.realAdapterIP.toIPv4Address());
+    const IPAddr netRealIp  = htonl(sdata.realAdapterIP.toIPv4Address());
     bool found = false;
     for (auto* dev = alldevs; !found && dev; dev = dev->next) {
         for (auto* ap = dev->addresses; !found && ap; ap = ap->next) {
@@ -470,7 +471,7 @@ void RealReceiver::run() {
 #else
             IPAddr ip4 = ((sockaddr_in*) ap->addr)->sin_addr.s_addr;
 #endif
-            if(ap->addr->sa_family == AF_INET && realIp == ip4) {
+            if(ap->addr->sa_family == AF_INET && netRealIp == ip4) {
                 mPcapHandle = pcap_open_live(dev->name,         // name of the device
                                              65536,			// portion of the packet to capture.
                                              // 65536 grants that the whole packet will be captured on all the MACs.
