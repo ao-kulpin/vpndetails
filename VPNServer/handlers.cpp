@@ -35,7 +35,7 @@ ClientSocket::ClientSocket(QTcpSocket* _socket, u_int clientId, QObject *parent)
     mClientId(clientId)
 {
     connect(mSocket.get(), &QTcpSocket::readyRead, this,
-            &ClientSocket::onReadyRead, Qt::DirectConnection);
+            &ClientSocket::onReadyRead); //, Qt::DirectConnection);
 
     onReadyRead(); // first segment of data, if any
 }
