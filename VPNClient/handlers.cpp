@@ -14,7 +14,7 @@ VPNSocket::VPNSocket(QObject *parent) :
 }
 
 bool VPNSocket::connectToServer(const QString& _ip, u_int _port, const QHostAddress& _adapter) {
-/////////////    mTcpSocket->bind(_adapter);
+////    mTcpSocket->bind(_adapter);
     mTcpSocket->connectToHost(_ip, _port);
     if (mTcpSocket->waitForConnected(cdata.connectTime)) {
         return true;
@@ -28,7 +28,8 @@ void VPNSocket::onConnected() {
     printf("+++ Send ClientHello\n");
 
     VpnClientHello vch;
-    mTcpSocket->write((const char*) &vch, sizeof vch);
+    auto rc = mTcpSocket->write((const char*) &vch, sizeof vch);
+    printf("+++ socket->write %lld\n", rc);
 }
 
 void VPNSocket::onReadyRead() {

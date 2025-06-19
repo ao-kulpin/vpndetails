@@ -2,9 +2,12 @@
 #define ADAPTERADDR_H
 
 #ifdef _WIN32
+
 #include <winsock2.h>
 #include <windows.h>
 #include <iphlpapi.h>
+#include <memory>
+
 #endif
 
 #ifdef __linux__
@@ -24,7 +27,7 @@ public:
     static
     bool getMacAddress(IPAddr destIP, u_char macAddress[]);
     static
-    bool getGatewayMacAddress(IPAddr _srcIP, IPAddr _destIP, u_char _macAddress[]);
+    bool getGatewayMacAddress(IPAddr _srcIp, IPAddr _destIp, u_char _macAddress[]);
 
     static
     bool getGatewayIP(IPAddr ip, IPAddr *gatewayIP);

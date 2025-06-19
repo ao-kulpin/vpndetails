@@ -36,10 +36,16 @@ ClientSocket::ClientSocket(QTcpSocket* _socket, u_int clientId, QObject *parent)
 {
     connect(mSocket.get(), &QTcpSocket::readyRead, this,
             &ClientSocket::onReadyRead, Qt::DirectConnection);
+
+    onReadyRead(); // first segment of data, if any
 }
 
 void ClientSocket::onReadyRead() {
-    /// printf("ClientSocket::onReadyRead()\n");
+    const auto ba = mSocket->bytesAvailable();
+    printf("ClientSocket::onReadyRead(%lld)\n", ba);
+    if (ba <= 0)
+        return;
+
     ++ sdata.serverTimer;
     QByteArray clientData = mSocket->readAll();
     char* start  = clientData.data();
@@ -370,7 +376,7 @@ bool RealSender::openAdapter() {
                 printf("+++ mac: %02x %02x %02x %02x %02x %02x\n", m[0], m[1], m[2], m[3], m[4], m[5]);
 
                 AdapterAddr::getGatewayIP(realIp, &mGatewayIP);
-                printf ("+++ gatewayIP: %08X\n", mGatewayIP);
+                printf ("+++ gatewayIP: %08lX\n", mGatewayIP);
 
                 AdapterAddr::getGatewayMacAddress(realIp, mGatewayIP, mGatewayMac);
 

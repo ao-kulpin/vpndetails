@@ -25,14 +25,15 @@
 
 #ifdef _WIN32
 
-bool AdapterAddr::getMacAddress(IPAddr destIP, u_char macAddress[]) {
+bool AdapterAddr::getMacAddress(IPAddr destIp, u_char macAddress[]) {
+    IPAddr netDestIp = htonl(destIp);
     memset(macAddress, 0, 6);
     for (auto* adapt = getAdapts(); adapt; adapt = adapt->Next) {
 /////        printf("+++ adapt Name: %s\n", adapt->AdapterName);
         for (auto* unic = adapt->FirstUnicastAddress; unic; unic = unic->Next) {
             ULONG ip4 = ((sockaddr_in*) unic->Address.lpSockaddr)->sin_addr.S_un.S_addr;
 /////            printf("+++ getMac ip: %08X macLen: %ld\n", ip4, adapt->PhysicalAddressLength);
-            if (unic->Address.lpSockaddr->sa_family == AF_INET && destIP == ip4) {
+            if (unic->Address.lpSockaddr->sa_family == AF_INET && netDestIp == ip4) {
 
                 if (adapt->PhysicalAddressLength !=6)
                     return false;
@@ -45,12 +46,13 @@ bool AdapterAddr::getMacAddress(IPAddr destIP, u_char macAddress[]) {
     return false;
 }
 
-bool AdapterAddr::getGatewayMacAddress(IPAddr _destIP, u_char _macAddress[]) {
+bool AdapterAddr::getGatewayMacAddress(IPAddr _srcIp,
+                                       IPAddr _destIp, u_char _macAddress[]) {
     ULONG macAddr[2] = { 0 };
     ULONG phyAddrLen = 6;  /* default to length of six bytes */
 
     //Send an arp packet
-    if (SendARP(_destIP , 0, macAddr, &phyAddrLen) != NO_ERROR || phyAddrLen != 6)
+    if (SendARP(htonl(_destIp), 0, macAddr, &phyAddrLen) != NO_ERROR || phyAddrLen != 6)
         return false;
 
     memcpy(_macAddress, macAddr, 6);
@@ -58,12 +60,15 @@ bool AdapterAddr::getGatewayMacAddress(IPAddr _destIP, u_char _macAddress[]) {
 }
 
 bool AdapterAddr::getGatewayIP(IPAddr adaptIp, IPAddr *gatewayIP) {
+    IPAddr netAdaptIp = htonl(adaptIp);
+
     for (auto* adapt = getAdapts(); adapt; adapt = adapt->Next) {
         auto*  unic = adapt->FirstUnicastAddress;
         IPAddr ip4 = ((sockaddr_in*) unic->Address.lpSockaddr)->sin_addr.S_un.S_addr;
 
-        if (unic->Address.lpSockaddr->sa_family == AF_INET && adaptIp == ip4 && adapt->FirstGatewayAddress) {
-            *gatewayIP = ((sockaddr_in*) adapt->FirstGatewayAddress->Address.lpSockaddr)->sin_addr.S_un.S_addr;
+        if (unic->Address.lpSockaddr->sa_family == AF_INET && netAdaptIp == ip4 && adapt->FirstGatewayAddress) {
+            *gatewayIP = ntohl(
+                ((sockaddr_in*) adapt->FirstGatewayAddress->Address.lpSockaddr)->sin_addr.S_un.S_addr);
             return true;
         }
     }
