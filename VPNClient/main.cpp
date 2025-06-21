@@ -169,7 +169,9 @@ int main(int argc, char *argv[])
     }
 
     printf("Connected to server %s:%d (localAddress: %s)\n",
-           cdata.serverIP.toString().toLocal8Bit().constData(), cdata.serverPort,
+           /// cdata.serverIP.toString().toLocal8Bit().constData(), cdata.serverPort,
+           socket->peerAddress().toString().toStdString().c_str(),
+           socket->peerPort(),
            socket->localAddress().toString().toStdString().c_str());
 
     VirtReceiver vreceiver;
@@ -190,5 +192,6 @@ int main(int argc, char *argv[])
     vreceiver.start();
     vsender.start();
 
+    printf("+++ Message loop starts ...\n");
     return a.exec();
 }

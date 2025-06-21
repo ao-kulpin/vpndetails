@@ -11,10 +11,12 @@ VPNSocket::VPNSocket(QObject *parent) :
     mTcpSocket.reset(new QTcpSocket(this));
     connect(mTcpSocket.get(), &QTcpSocket::connected, this, &VPNSocket::onConnected);
     connect(mTcpSocket.get(), &QTcpSocket::readyRead, this, &VPNSocket::onReadyRead);
+    connect(mTcpSocket.get(), &QTcpSocket::errorOccurred, this, &VPNSocket::onError);
+    connect(mTcpSocket.get(), &QTcpSocket::disconnected, this, &VPNSocket::onDisconnected);
 }
 
 bool VPNSocket::connectToServer(const QString& _ip, u_int _port, const QHostAddress& _adapter) {
-////    mTcpSocket->bind(_adapter);
+    mTcpSocket->bind(_adapter);
     mTcpSocket->connectToHost(_ip, _port);
     if (mTcpSocket->waitForConnected(cdata.connectTime)) {
         return true;
@@ -29,10 +31,17 @@ void VPNSocket::onConnected() {
 
     VpnClientHello vch;
     auto rc = mTcpSocket->write((const char*) &vch, sizeof vch);
+    mTcpSocket->flush();
     printf("+++ socket->write %lld\n", rc);
 }
 
 void VPNSocket::onReadyRead() {
+    const auto ba = mTcpSocket->bytesAvailable();
+    printf("+++ VPNSocket::onReadyRead(%lld)\n", ba);
+
+    if (ba <= 0)
+        return;
+
     QByteArray vpnData = mTcpSocket->readAll();
     char* start  = vpnData.data();
     auto* record = start;
@@ -58,8 +67,8 @@ void VPNSocket::onReadyRead() {
         case VpnOp::IPPacket: {
             auto* vip = (VpnIPPacket*) record;
             u_int dataSize = ntohl(vip->dataSize);
-//            printf("+++ VpnIPPacket received: client=%lu size=%u\n",
-//                   ntohl(vip->clientId), dataSize);
+            printf("+++ VpnIPPacket received: client=%lu size=%u\n",
+                   ntohl(vip->clientId), dataSize);
 
             putToServerQueue(ProtoBuilder::decomposeIPacket(*vip));
 
@@ -89,6 +98,7 @@ bool VPNSocket::event(QEvent *event) {
 }
 
 void VPNSocket::sendReceivedVirtPackets() {
+    printf("+++ VPNSocket::sendReceivedVirtPackets()\n");
     auto& inputQueue = cdata.virtReceiveQueue;
     auto& mutex = cdata.virtReceiveMutex;
     auto& haveQuit = cdata.haveQuit;
@@ -115,6 +125,16 @@ QHostAddress VPNSocket::localAddress() {
     return mTcpSocket ? mTcpSocket->localAddress() : QHostAddress::Null;
 }
 
+QHostAddress VPNSocket::peerAddress() {
+    return mTcpSocket ? mTcpSocket->peerAddress() : QHostAddress::Null;
+}
+
+u_short VPNSocket::peerPort() {
+    return mTcpSocket ? mTcpSocket->peerPort() : 0;
+}
+
+
+
 void VPNSocket::sendVirtPacket(const IPPacket& _packet) {
     u_int sendSize = 0;
     auto vip = ProtoBuilder::composeIPacket(_packet, cdata.clientId, &sendSize);
@@ -129,6 +149,16 @@ void VPNSocket::putToServerQueue(IPPacketPtr _packet) {
     QMutexLocker qul(&mutex);
     queue.push(std::move(_packet));
     wc.wakeAll();
+}
+
+void VPNSocket::onError(QAbstractSocket::SocketError socketError) {
+    printf("\n*** Signal Error=%d state=%d !!!\n\n", int(socketError),
+           int(mTcpSocket->state()));
+}
+
+void VPNSocket::onDisconnected() {
+    printf("\n*** Signal Disconnected state=%d !!!\n\n",
+           int(mTcpSocket->state()));
 }
 
 VirtReceiver::VirtReceiver() {}

@@ -14,12 +14,9 @@ class VPNSocket : public QObject {
 public:
     VPNSocket(QObject *parent = nullptr);
     bool connectToServer(const QString& _ip, u_int _port, const QHostAddress& _adapter);
-    QHostAddress  localAddress();
-
-
-private slots:
-    void onConnected();
-    void onReadyRead();
+    QHostAddress    localAddress();
+    QHostAddress    peerAddress();
+    u_short         peerPort();
 
 private:
     void sendReceivedVirtPackets();
@@ -30,6 +27,13 @@ private:
 
 protected:
     bool event(QEvent *event) override;
+
+private slots:
+    void onConnected();
+    void onReadyRead();
+    void onError(QAbstractSocket::SocketError socketError);
+    void onDisconnected();
+
 };
 
 class VirtReceiver : public QThread
