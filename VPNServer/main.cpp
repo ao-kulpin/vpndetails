@@ -50,16 +50,17 @@ public:
     Server(QObject *parent = nullptr) : QTcpServer(parent) {
         connect(this, &QTcpServer::newConnection, this, &Server::onNewConnection);
         connect(this, &QTcpServer::acceptError, this, &Server::onAcceptError);
-        connect(this, &QTcpServer::destroyed, this, &Server::onDestroyed);
+        /// connect(this, &QObject::destroyed, this, &Server::onDestroyed);
         connect(this, &QTcpServer::pendingConnectionAvailable, this, &Server::onPendingConnectionAvailable);
     }
 
 private slots:
     void onNewConnection() {
         auto* npc = nextPendingConnection();
-        printf("Client connected from %s state: %d ...\n",
+        printf("Client connected from %s state: %d proto: %d...\n",
                npc->peerAddress().toString().toStdString().c_str(),
-               npc->state());
+               npc->state(),
+               npc->peerAddress().protocol());
         printf("Local address: %s\n",
                npc->localAddress().toString().toStdString().c_str());
         auto *sock = new ClientSocket(npc, ++sdata.clientCount);
@@ -70,8 +71,8 @@ private slots:
         printf("QTcpServer::acceptError(%d) !!!\n\n", socketError);
     }
 
-    void onDestroyed() {
-        printf("QTcpServer::destroyed !!!\n\n");
+    void onDestroyed(QObject *obj) {
+        printf("QTcpServer::destroyed(%p) !!!\n\n", obj);
     }
 
     void onPendingConnectionAvailable() {
@@ -87,8 +88,10 @@ int main(int argc, char *argv[])
         sdata.serverPort = strtol(argv[1], 0, 10);
 
     Server server;
+    ///std::unique_ptr<Server> server (std::make_unique<Server>());
 
-    if (!server.listen(QHostAddress::Any, sdata.serverPort)) {
+///    if (!server.listen(QHostAddress::Any, sdata.serverPort)) {
+    if (!server.listen(QHostAddress::AnyIPv4, sdata.serverPort)) {
         printf("Server can't start: %s\n", server.errorString().toLocal8Bit().constData());
         return 1;
     }
