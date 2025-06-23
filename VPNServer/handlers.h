@@ -72,7 +72,7 @@ public:
     bool updatePacket(IPPacket& _packet);
     bool send(const IPPacket& _packet);
 
-    IPAddr  mGatewayIP     = 0;
+    IP4Addr mGatewayIP     = 0;
     u_char  mAdaptMac  [6] = { 0 };
     u_char  mGatewayMac[6] = { 0 };
     pcap_t* mPcapHandle    = nullptr;

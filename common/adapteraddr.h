@@ -2,12 +2,10 @@
 #define ADAPTERADDR_H
 
 #ifdef _WIN32
-
 #include <winsock2.h>
 #include <windows.h>
 #include <iphlpapi.h>
 #include <memory>
-
 #endif
 
 #ifdef __linux__
@@ -17,20 +15,21 @@
 #include <netinet/in.h>
 #include <net/if.h>
 #include <unistd.h>
+#endif
 
 #include "vpntypes.h"
-#endif
+
 
 class AdapterAddr
 {
 public:
     static
-    bool getMacAddress(IPAddr destIP, u_char macAddress[]);
+    bool getMacAddress(IP4Addr destIP, u_char macAddress[]);
     static
-    bool getGatewayMacAddress(IPAddr _srcIp, IPAddr _destIp, u_char _macAddress[]);
+    bool getGatewayMacAddress(IP4Addr _srcIp, IP4Addr _destIp, u_char _macAddress[]);
 
     static
-    bool getGatewayIP(IPAddr ip, IPAddr *gatewayIP);
+    bool getGatewayIP(IP4Addr ip, IP4Addr *gatewayIP);
 
 private:
 
@@ -49,7 +48,7 @@ private:
     static
     ifaddrs*        getAdapts();
     static
-    bool            getAdaptName(IPAddr destIp, char name[]);
+    bool            getAdaptName(IP4Addr destIp, char name[]);
 
     static
     ifaddrs*        mAdaptList;

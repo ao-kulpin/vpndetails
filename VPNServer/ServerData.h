@@ -19,17 +19,11 @@
 #include <memory>
 
 #include "protocol.h"
-
-#ifdef __linux__
-
 #include "vpntypes.h"
-
-#endif // __linux__
-
 
 struct PortKey {
     u_int       clientId;
-    IPAddr      clientIp;
+    IP4Addr     clientIp;
     u_short     clientPort;
 };
 
@@ -37,14 +31,14 @@ bool operator < (const PortKey& lhs, const PortKey& rhs);
 
 struct PortInfo {
     u_int       clientId;
-    IPAddr      clientIp;
+    IP4Addr     clientIp;
     u_short     clientPort;
     u_short     serverPort;
 };
 
 class ClientRequestKey {
 public:
-    IPAddr      destIp = 0;
+    IP4Addr     destIp = 0;
     u_short     proto = 0;
 };
 
@@ -77,7 +71,7 @@ public:
     std::atomic<u_int64>        serverTimer {0};
     u_short                     serverPort {55555};
 ///    QHostAddress                realAdapterIP {"192.168.0.104"};
-    QHostAddress                realAdapterIP {"192.168.8.100"};
+    QHostAddress                realAdapterIP {"192.168.8.101"};
 ///    QHostAddress                realAdapterIP {"194.87.138.48"};
     bool                        haveQuit {false};
 

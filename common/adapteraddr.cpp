@@ -25,8 +25,8 @@
 
 #ifdef _WIN32
 
-bool AdapterAddr::getMacAddress(IPAddr destIp, u_char macAddress[]) {
-    IPAddr netDestIp = htonl(destIp);
+bool AdapterAddr::getMacAddress(IP4Addr destIp, u_char macAddress[]) {
+    IP4Addr netDestIp = htonl(destIp);
     memset(macAddress, 0, 6);
     for (auto* adapt = getAdapts(); adapt; adapt = adapt->Next) {
 /////        printf("+++ adapt Name: %s\n", adapt->AdapterName);
@@ -46,8 +46,8 @@ bool AdapterAddr::getMacAddress(IPAddr destIp, u_char macAddress[]) {
     return false;
 }
 
-bool AdapterAddr::getGatewayMacAddress(IPAddr _srcIp,
-                                       IPAddr _destIp, u_char _macAddress[]) {
+bool AdapterAddr::getGatewayMacAddress(IP4Addr _srcIp,
+                                       IP4Addr _destIp, u_char _macAddress[]) {
     ULONG macAddr[2] = { 0 };
     ULONG phyAddrLen = 6;  /* default to length of six bytes */
 
@@ -59,12 +59,12 @@ bool AdapterAddr::getGatewayMacAddress(IPAddr _srcIp,
     return true;
 }
 
-bool AdapterAddr::getGatewayIP(IPAddr adaptIp, IPAddr *gatewayIP) {
-    IPAddr netAdaptIp = htonl(adaptIp);
+bool AdapterAddr::getGatewayIP(IP4Addr adaptIp, IP4Addr *gatewayIP) {
+    IP4Addr netAdaptIp = htonl(adaptIp);
 
     for (auto* adapt = getAdapts(); adapt; adapt = adapt->Next) {
         auto*  unic = adapt->FirstUnicastAddress;
-        IPAddr ip4 = ((sockaddr_in*) unic->Address.lpSockaddr)->sin_addr.S_un.S_addr;
+        IP4Addr ip4 = ((sockaddr_in*) unic->Address.lpSockaddr)->sin_addr.S_un.S_addr;
 
         if (unic->Address.lpSockaddr->sa_family == AF_INET && netAdaptIp == ip4 && adapt->FirstGatewayAddress) {
             *gatewayIP = ntohl(
@@ -105,7 +105,7 @@ bool checkFamily(int _family) {
     return _family == AF_PACKET || _family == PF_INET;
 }
 
-bool AdapterAddr::getMacAddress(IPAddr destIP, u_char macAddress[]) {
+bool AdapterAddr::getMacAddress(IP4Addr destIP, u_char macAddress[]) {
     memset(macAddress, 0, 6);
 
     ifreq req;
@@ -142,7 +142,7 @@ printf("+++ ip %08X %08X fam %d\n", ((sockaddr_in*) adapt->ifa_addr)->sin_addr.s
 #endif
 }
 
-bool AdapterAddr::getGatewayIP(IPAddr adaptIp, IPAddr *gatewayIP) {
+bool AdapterAddr::getGatewayIP(IP4Addr adaptIp, IP4Addr *gatewayIP) {
     char adaptName[IFNAMSIZ];
     if (!getAdaptName(adaptIp, adaptName))
         return false;
@@ -177,7 +177,7 @@ bool AdapterAddr::getGatewayIP(IPAddr adaptIp, IPAddr *gatewayIP) {
     return false;
 }
 
-bool AdapterAddr::getGatewayMacAddress(IPAddr _srcIp, IPAddr _destIp, u_char _macAddress[]) {
+bool AdapterAddr::getGatewayMacAddress(IP4Addr _srcIp, IP4Addr _destIp, u_char _macAddress[]) {
     ifreq ifr;
     memset(&ifr, 0, sizeof ifr);
     if (!getAdaptName(_srcIp, ifr.ifr_name))
@@ -185,8 +185,8 @@ bool AdapterAddr::getGatewayMacAddress(IPAddr _srcIp, IPAddr _destIp, u_char _ma
 
 printf("+++ getGatewayMacAddress 2 in=%s src %08X dest %08X\n", ifr.ifr_name, _srcIp, _destIp);
 
-    const IPAddr netSrcIp  = htonl(_srcIp);
-    const IPAddr netDestIp = htonl(_destIp);
+    const IP4Addr netSrcIp  = htonl(_srcIp);
+    const IP4Addr netDestIp = htonl(_destIp);
 
     int sockFd = socket(AF_PACKET, SOCK_RAW, htons (ETH_P_ALL));
     if (sockFd == -1)
@@ -219,8 +219,8 @@ printf("+++ getGatewayMacAddress mac: %02X %02X %02X %02X %02X %02X\n",
     arp_req.arp_op = htons(ARPOP_REQUEST);
     memcpy(arp_req.arp_sha, ifr.ifr_hwaddr.sa_data, ETH_ALEN);
 
-    *(IPAddr*) &arp_req.arp_spa = netSrcIp;
-    *(IPAddr*) &arp_req.arp_tpa = netDestIp;
+    *(IP4Addr*) &arp_req.arp_spa = netSrcIp;
+    *(IP4Addr*) &arp_req.arp_tpa = netDestIp;
 
     const u_int BufSize = sizeof(EthernetHeader) + sizeof(ether_arp);
     u_char reqBuf[BufSize];
@@ -267,13 +267,13 @@ printf("+++ getGatewayMacAddress() type=%04X\n", ntohs(eh->ether_type));
 
         if (ntohs(eh->ether_type) == ETHERTYPE_ARP
             && ntohs(ea->arp_op) == ARPOP_REPLY
-            && *(IPAddr*) &ea->arp_spa == netDestIp
-            && *(IPAddr*) &ea->arp_tpa == netSrcIp) {
+            && *(IP4Addr*) &ea->arp_spa == netDestIp
+            && *(IP4Addr*) &ea->arp_tpa == netSrcIp) {
             // ARP replay
 
             memcpy(_macAddress, ea->arp_sha, ETH_ALEN);
  printf("+++ Arp reply: source: %08X target: %08X\n",
-                   ntohl(*(IPAddr*) &ea->arp_spa), ntohl(*(IPAddr*) &ea->arp_tpa));
+                   ntohl(*(IP4Addr*) &ea->arp_spa), ntohl(*(IP4Addr*) &ea->arp_tpa));
             return true;
         }
 
@@ -294,7 +294,7 @@ ifaddrs*  AdapterAddr::getAdapts() {
     return mAdaptList;
 }
 
-bool AdapterAddr::getAdaptName(IPAddr destIp, char name[]) {
+bool AdapterAddr::getAdaptName(IP4Addr destIp, char name[]) {
     auto netDestIp = htonl(destIp);
     for (auto* adapt = getAdapts(); adapt; adapt = adapt->ifa_next) {
 ///        printf("+++ getAdaptName %08X %08X fam %d\n",
