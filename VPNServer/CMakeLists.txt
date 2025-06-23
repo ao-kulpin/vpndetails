@@ -33,6 +33,8 @@ endif()
 
 add_executable(VPNServer
   main.cpp
+  server.h
+  server.cpp
   ServerData.h
   handlers.h
   handlers.cpp

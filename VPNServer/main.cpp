@@ -12,6 +12,7 @@
 
 #include <csignal>
 
+#include "server.h"
 #include "ServerData.h"
 #include "handlers.h"
 #include "killer.h"
@@ -42,43 +43,6 @@ void signalHandler(int signum) {
 
     QCoreApplication::quit();
 }
-
-class Server : public QTcpServer
-{
-    Q_OBJECT
-public:
-    Server(QObject *parent = nullptr) : QTcpServer(parent) {
-        connect(this, &QTcpServer::newConnection, this, &Server::onNewConnection);
-        connect(this, &QTcpServer::acceptError, this, &Server::onAcceptError);
-        /// connect(this, &QObject::destroyed, this, &Server::onDestroyed);
-        connect(this, &QTcpServer::pendingConnectionAvailable, this, &Server::onPendingConnectionAvailable);
-    }
-
-private slots:
-    void onNewConnection() {
-        auto* npc = nextPendingConnection();
-        printf("Client connected from %s state: %d proto: %d...\n",
-               npc->peerAddress().toString().toStdString().c_str(),
-               npc->state(),
-               npc->peerAddress().protocol());
-        printf("Local address: %s\n",
-               npc->localAddress().toString().toStdString().c_str());
-        auto *sock = new ClientSocket(npc, ++sdata.clientCount);
-        sdata.socketMap[sock->clientId()] = sock;
-    }
-
-    void onAcceptError(QAbstractSocket::SocketError socketError) {
-        printf("QTcpServer::acceptError(%d) !!!\n\n", socketError);
-    }
-
-    void onDestroyed(QObject *obj) {
-        printf("QTcpServer::destroyed(%p) !!!\n\n", obj);
-    }
-
-    void onPendingConnectionAvailable() {
-        printf("QTcpServer::pendingConnectionAvailable !!!\n\n");
-    }
-};
 
 int main(int argc, char *argv[])
 {
@@ -129,5 +93,3 @@ int main(int argc, char *argv[])
 
     return a.exec();
 }
-
-#include "main.moc"

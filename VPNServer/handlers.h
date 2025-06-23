@@ -28,7 +28,6 @@ public:
 private:
     bool                        updateClientPacket (IPPacket& _packet);
     bool                        updateServerPacket (IPPacket& _packet);
-    void                        onReadyRead();
     u_short                     getClientPort(u_short serverPort);
     u_short                     getServerPort(u_short clientPort);
     void                        sendReceivedPackets();
@@ -49,6 +48,9 @@ private:
 
 protected:
     bool event(QEvent *event) override;
+
+private slots:
+    void                        onReadyRead();
 };
 
 class ClientReceiveEvent: public QEvent {
