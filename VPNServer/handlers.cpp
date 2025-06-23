@@ -37,6 +37,10 @@ ClientSocket::ClientSocket(QTcpSocket* _socket, u_int clientId, QObject *parent)
     connect(mSocket.get(), &QTcpSocket::readyRead, this,
             &ClientSocket::onReadyRead); //, Qt::DirectConnection);
 
+    connect(mSocket.get(), &QTcpSocket::errorOccurred, this, &ClientSocket::onError);
+    connect(mSocket.get(), &QTcpSocket::disconnected, this, &ClientSocket::onDisconnected);
+
+
     onReadyRead(); // first segment of data, if any
 }
 
@@ -95,6 +99,16 @@ void ClientSocket::onReadyRead() {
         }
     }
 }
+void ClientSocket::onError(QAbstractSocket::SocketError socketError) {
+    printf("\n*** Signal Error=%d state=%d !!!\n\n", int(socketError),
+           int(mSocket->state()));
+}
+
+void ClientSocket::onDisconnected() {
+    printf("\n*** Signal Disconnected state=%d !!!\n\n",
+           int(mSocket->state()));
+}
+
 
 bool ClientSocket::updateClientPacket (IPPacket& _packet) {
     auto* iph = _packet.header();

@@ -50,7 +50,9 @@ protected:
     bool event(QEvent *event) override;
 
 private slots:
-    void                        onReadyRead();
+    void        onReadyRead();
+    void        onError(QAbstractSocket::SocketError socketError);
+    void        onDisconnected();
 };
 
 class ClientReceiveEvent: public QEvent {
