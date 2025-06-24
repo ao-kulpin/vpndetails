@@ -16,7 +16,7 @@ VPNSocket::VPNSocket(QObject *parent) :
 }
 
 bool VPNSocket::connectToServer(const QString& _ip, u_int _port, const QHostAddress& _adapter) {
-    mTcpSocket->bind(_adapter);
+////////    mTcpSocket->bind(_adapter);
     mTcpSocket->connectToHost(_ip, _port);
     if (mTcpSocket->waitForConnected(cdata.connectTime)) {
         return true;

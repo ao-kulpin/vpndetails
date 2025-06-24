@@ -28,8 +28,8 @@ public:
     int          ringSize       {0x400000};
     int          defaultMetricAdd {100};
 
-    /// QHostAddress serverIP       {"127.0.0.1"};
-    QHostAddress serverIP       {"194.87.138.48"};
+    QHostAddress serverIP       {"127.0.0.1"};
+    ///QHostAddress serverIP       {"194.87.138.48"};
     u_short      serverPort     { 55555 };
     u_int        connectTime    { 2000 };
     u_int        clientId       { 0 };

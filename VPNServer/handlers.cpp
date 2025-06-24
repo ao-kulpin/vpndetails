@@ -34,6 +34,8 @@ ClientSocket::ClientSocket(QTcpSocket* _socket, u_int clientId, QObject *parent)
     mSocket(_socket),
     mClientId(clientId)
 {
+    printf("\n+++ ClientSocket::ClientSocket raw ptr=%p smart ptr=%p !!!\n\n",
+           _socket, mSocket.get());
     connect(mSocket.get(), &QTcpSocket::readyRead, this,
             &ClientSocket::onReadyRead); //, Qt::DirectConnection);
 
@@ -100,12 +102,12 @@ void ClientSocket::onReadyRead() {
     }
 }
 void ClientSocket::onError(QAbstractSocket::SocketError socketError) {
-    printf("\n*** Signal Error=%d state=%d !!!\n\n", int(socketError),
+    printf("\n*** ClientSocket: Signal Error=%d state=%d !!!\n\n", int(socketError),
            int(mSocket->state()));
 }
 
 void ClientSocket::onDisconnected() {
-    printf("\n*** Signal Disconnected state=%d !!!\n\n",
+    printf("\n*** ClientSocket: Signal Disconnected state=%d !!!\n\n",
            int(mSocket->state()));
 }
 
