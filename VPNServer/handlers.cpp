@@ -392,7 +392,7 @@ bool RealSender::openAdapter() {
                 printf("+++ mac: %02x %02x %02x %02x %02x %02x\n", m[0], m[1], m[2], m[3], m[4], m[5]);
 
                 AdapterAddr::getGatewayIP(realIp, &mGatewayIP);
-                printf ("+++ gatewayIP: %08lX\n", mGatewayIP);
+                printf ("+++ gatewayIP: %08X\n", mGatewayIP);
 
                 AdapterAddr::getGatewayMacAddress(realIp, mGatewayIP, mGatewayMac);
 
