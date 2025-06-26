@@ -56,6 +56,7 @@ private slots:
 };
 
 class ClientReceiveEvent: public QEvent {
+    /// Q_OBJECT
 public:
     static const QEvent::Type EventType = static_cast<QEvent::Type>(QEvent::User + 1);
 

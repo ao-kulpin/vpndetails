@@ -78,6 +78,22 @@ int main(int argc, char *argv[])
         return 1;
     }
 
+
+    //VPNSocket socket;
+    auto& socket = (cdata.vpnSocket = new VPNSocket);
+    if(!socket->connectToServer(cdata.serverIP.toString(), cdata.serverPort, cdata.realAdapterIP)) {
+        printf("Can't connect to server %s:%d\n", cdata.serverIP.toString().toLocal8Bit().constData(), cdata.serverPort);
+        return 1;
+    }
+
+    printf("Connected to server %s:%d (localAddress: %s)\n",
+           /// cdata.serverIP.toString().toLocal8Bit().constData(), cdata.serverPort,
+           socket->peerAddress().toString().toStdString().c_str(),
+           socket->peerPort(),
+           socket->localAddress().toString().toStdString().c_str());
+
+
+
     if(WinTunLib::isLoaded())
         printf("wintun.dll is loaded\n");
     else {
@@ -158,9 +174,7 @@ int main(int argc, char *argv[])
         CloseHandle(cdata.quitEvent);
     });
 
-
-
-
+#if 0
     //VPNSocket socket;
     auto& socket = (cdata.vpnSocket = new VPNSocket);
     if(!socket->connectToServer(cdata.serverIP.toString(), cdata.serverPort, cdata.realAdapterIP)) {
@@ -173,6 +187,7 @@ int main(int argc, char *argv[])
            socket->peerAddress().toString().toStdString().c_str(),
            socket->peerPort(),
            socket->localAddress().toString().toStdString().c_str());
+#endif
 
     VirtReceiver vreceiver;
     Killer vrck ( [&] {

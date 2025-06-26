@@ -36,6 +36,7 @@ ClientSocket::ClientSocket(QTcpSocket* _socket, u_int clientId, QObject *parent)
 {
     printf("\n+++ ClientSocket::ClientSocket raw ptr=%p smart ptr=%p !!!\n\n",
            _socket, mSocket.get());
+
     connect(mSocket.get(), &QTcpSocket::readyRead, this,
             &ClientSocket::onReadyRead); //, Qt::DirectConnection);
 

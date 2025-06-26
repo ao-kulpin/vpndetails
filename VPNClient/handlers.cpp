@@ -16,7 +16,10 @@ VPNSocket::VPNSocket(QObject *parent) :
 }
 
 bool VPNSocket::connectToServer(const QString& _ip, u_int _port, const QHostAddress& _adapter) {
-////////    mTcpSocket->bind(_adapter);
+    if (!mTcpSocket->bind(_adapter)) {
+        printf("*** bond() failed: %s\n", mTcpSocket->errorString().toStdString().c_str());
+        return false;
+    }
     mTcpSocket->connectToHost(_ip, _port);
     if (mTcpSocket->waitForConnected(cdata.connectTime)) {
         return true;
@@ -30,9 +33,12 @@ void VPNSocket::onConnected() {
     printf("+++ Send ClientHello\n");
 
     VpnClientHello vch;
-    auto rc = mTcpSocket->write((const char*) &vch, sizeof vch);
-    mTcpSocket->flush();
-    printf("+++ socket->write %lld\n", rc);
+
+    for (int i = 0; i < 100; ++i) {
+        auto rc = mTcpSocket->write((const char*) &vch, sizeof vch);
+        auto f = mTcpSocket->flush();
+        printf("+++ %d) socket->write %lld(%d)\n", i, rc, int(f));
+    }
 }
 
 void VPNSocket::onReadyRead() {
@@ -98,7 +104,7 @@ bool VPNSocket::event(QEvent *event) {
 }
 
 void VPNSocket::sendReceivedVirtPackets() {
-    printf("+++ VPNSocket::sendReceivedVirtPackets()\n");
+    //// printf("+++ VPNSocket::sendReceivedVirtPackets()\n");
     auto& inputQueue = cdata.virtReceiveQueue;
     auto& mutex = cdata.virtReceiveMutex;
     auto& haveQuit = cdata.haveQuit;
@@ -139,6 +145,7 @@ void VPNSocket::sendVirtPacket(const IPPacket& _packet) {
     u_int sendSize = 0;
     auto vip = ProtoBuilder::composeIPacket(_packet, cdata.clientId, &sendSize);
     mTcpSocket->write((const char*) vip.get(), sendSize);
+    mTcpSocket->flush();
 }
 
 void VPNSocket::putToServerQueue(IPPacketPtr _packet) {
