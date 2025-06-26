@@ -292,10 +292,11 @@ void ClientSocket::sendServerPacket(const IPPacket& _packet) {
     u_int sentSize = 0;
     auto vip = ProtoBuilder::composeIPacket(_packet, mClientId, &sentSize);
     mSocket->write((const char*) vip.get(), sentSize);
+    mSocket->flush();
     ++mSentServerPackCount;
     const auto totalLen = ntohs(_packet.header()->totalLen);
     mSentServerPackSize += totalLen;
-    if (mSentServerPackCount % 100 == 0) {
+    if (mSentServerPackCount % 1 == 0) {
       printf("*** Sent to Cliend: id:%u, pakets:%u total size:%llu MB\n",
              mClientId, mSentServerPackCount, mSentServerPackSize >> 20);
     }
