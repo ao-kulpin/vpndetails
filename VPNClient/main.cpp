@@ -12,10 +12,13 @@
 
 #include "killer.h"
 #include "routetable.h"
+#include "adapteraddr.h"
 
 ClientData cdata; // common data of the application
 
 WinTunLib*                            WinTunLib::mInstance = nullptr;
+
+std::unique_ptr<IP_ADAPTER_ADDRESSES> AdapterAddr::mAdaptList;
 
 void signalHandler(int signum) {
     printf("\nTerminated by user\n");
@@ -79,6 +82,7 @@ int main(int argc, char *argv[])
     }
 
 
+#if 0
     //VPNSocket socket;
     auto& socket = (cdata.vpnSocket = new VPNSocket);
     if(!socket->connectToServer(cdata.serverIP.toString(), cdata.serverPort, cdata.realAdapterIP)) {
@@ -91,6 +95,7 @@ int main(int argc, char *argv[])
            socket->peerAddress().toString().toStdString().c_str(),
            socket->peerPort(),
            socket->localAddress().toString().toStdString().c_str());
+#endif
 
 
 
@@ -145,7 +150,7 @@ int main(int argc, char *argv[])
         printf("Session is ended\n");
     });
 
-// #if 0
+///#if 0
     RouteTable rtable;
 
     if (rtable.updateDefaultRoute())
@@ -162,7 +167,7 @@ int main(int argc, char *argv[])
             printf("Can't restore the route table\n");
         }
     });
-// #endif
+///#endif
 
     cdata.quitEvent = CreateEvent(0, TRUE, FALSE, 0);
     if (!cdata.quitEvent) {
@@ -174,7 +179,7 @@ int main(int argc, char *argv[])
         CloseHandle(cdata.quitEvent);
     });
 
-#if 0
+///#if 0
     //VPNSocket socket;
     auto& socket = (cdata.vpnSocket = new VPNSocket);
     if(!socket->connectToServer(cdata.serverIP.toString(), cdata.serverPort, cdata.realAdapterIP)) {
@@ -187,7 +192,7 @@ int main(int argc, char *argv[])
            socket->peerAddress().toString().toStdString().c_str(),
            socket->peerPort(),
            socket->localAddress().toString().toStdString().c_str());
-#endif
+////#endif
 
     VirtReceiver vreceiver;
     Killer vrck ( [&] {

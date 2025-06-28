@@ -3,7 +3,6 @@
 #include "adapteraddr.h"
 #include "killer.h"
 #include "protocol.h"
-#include "ServerData.h"
 
 #ifdef __linux__
 

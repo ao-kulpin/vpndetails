@@ -4,12 +4,11 @@
 
 #include "routetable.h"
 #include "ClientData.h"
+#include "adapteraddr.h"
 
 #include <stdio.h>
 
-RouteTable::RouteTable() :
-    mVirtAdapIndex {getIndex(htonl(cdata.virtAdapterIP.toIPv4Address()))}
-{}
+RouteTable::RouteTable() {}
 
 RouteTable::~RouteTable() {
     restoreDefaultRoute();
@@ -35,14 +34,16 @@ bool RouteTable::updateDefaultRoute() {
     else
         return ftFail();
 
-    return resetVirtMetric() && updateOldDefaults() && createNewDefault();
+    return resetVirtMetric() && updateOldDefaults()
+           && createNewDefault() && createServerRoute();
 }
 
 bool RouteTable::restoreDefaultRoute() {
     if (!mForwadTable)
         return true;
 
-    auto rv = deleteNewDefault() && restoreOldDefaults();
+    auto rv = deleteNewDefault() && restoreOldDefaults()
+                                        && deleteServerRoute();
     mForwadTable.reset();
     mAdapts.reset();
     return rv;
@@ -101,7 +102,7 @@ bool RouteTable::createNewDefault() {
     route.NextHop.si_family = AF_INET;
     route.Metric = 0;
 
-    route.InterfaceIndex = mVirtAdapIndex;
+    route.InterfaceIndex = getIndex(cdata.virtAdapterIP.toIPv4Address());
     route.DestinationPrefix.PrefixLength = 0;
     route.Age = 0;
     route.Protocol = RouteProtocolNetMgmt;
@@ -117,6 +118,43 @@ bool RouteTable::createNewDefault() {
     }
 }
 
+bool RouteTable::createServerRoute() {
+    MIB_IPFORWARD_ROW2  route = {0};
+    InitializeIpForwardEntry(&route);
+
+    route.DestinationPrefix.Prefix.si_family = AF_INET;
+    route.NextHop.si_family = AF_INET;
+    route.Metric = 0;
+
+    route.InterfaceIndex = getIndex(cdata.realAdapterIP.toIPv4Address());
+    route.DestinationPrefix.Prefix
+            .Ipv4.sin_addr.S_un.S_addr =
+                htonl(cdata.serverIP.toIPv4Address());
+    route.DestinationPrefix.PrefixLength = 32;
+
+    IP4Addr gatewayIp = 0;
+    AdapterAddr::getGatewayIP(cdata.realAdapterIP.toIPv4Address(), &gatewayIp);
+
+    route.NextHop.Ipv4.sin_family = AF_INET;
+    route.NextHop.Ipv4.sin_addr.S_un.S_addr = htonl(gatewayIp);
+
+    route.Age = 0;
+    route.Protocol = RouteProtocolNetMgmt;
+
+    int rc = CreateIpForwardEntry2(&route);
+    if (rc == NO_ERROR || rc == ERROR_OBJECT_ALREADY_EXISTS) {
+        printf("\n+++ CreateIpForwardEntry2<server>(%d %ld %ld)\n", rc, route.Metric, route.Age);
+        return true;
+    }
+    else {
+        printf("CreateIpForwardEntry2<sever>() fails rc:%d\n", rc);
+        return false;
+    }
+
+
+
+}
+
 bool RouteTable::deleteNewDefault() {
 
     MIB_IPFORWARD_ROW2  route = {0};
@@ -125,13 +163,38 @@ bool RouteTable::deleteNewDefault() {
     route.DestinationPrefix.Prefix.si_family = AF_INET;
     route.NextHop.si_family = AF_INET;
     route.Metric = 0;
-    route.InterfaceIndex = mVirtAdapIndex;
+    route.InterfaceIndex = getIndex(cdata.virtAdapterIP.toIPv4Address());
 
     int rc = -1;
     if ((rc = DeleteIpForwardEntry2(&route)) == NO_ERROR)
         return true;
     else {
         printf("DeleteIpForwardEntry2() fails rc:%d\n", rc);
+        return false;
+    }
+}
+bool RouteTable::deleteServerRoute() {
+
+    MIB_IPFORWARD_ROW2  route = {0};
+    InitializeIpForwardEntry(&route);
+
+    route.DestinationPrefix.Prefix.si_family = AF_INET;
+    route.NextHop.si_family = AF_INET;
+    route.Metric = 0;
+    route.InterfaceIndex = getIndex(cdata.realAdapterIP.toIPv4Address());
+
+    route.DestinationPrefix.Prefix
+        .Ipv4.sin_addr.S_un.S_addr =
+        htonl(cdata.serverIP.toIPv4Address());
+    route.DestinationPrefix.PrefixLength = 32;
+
+    int rc = -1;
+    if ((rc = DeleteIpForwardEntry2(&route)) == NO_ERROR) {
+        printf("+++ DeleteIpForwardEntry2<server>() succeed\n");
+        return true;
+    }
+    else {
+        printf("DeleteIpForwardEntry2<server>() fails rc:%d\n", rc);
         return false;
     }
 }
@@ -168,7 +231,7 @@ bool RouteTable::resetVirtMetric() {
     InitializeIpInterfaceEntry(&row);
 
     row.Family = AF_INET;
-    row.InterfaceIndex = mVirtAdapIndex;
+    row.InterfaceIndex = getIndex(cdata.virtAdapterIP.toIPv4Address());
 
     int rc1 = -1;
     if ((rc1 = GetIpInterfaceEntry(&row)) == NO_ERROR) {
@@ -198,6 +261,7 @@ bool RouteTable::resetVirtMetric() {
 }
 
 int RouteTable::getIndex(DWORD ip4) {
+    auto netIp4 = htonl(ip4);
     auto* alist = getAdapts();
     if (!alist)
         return -1;
@@ -207,7 +271,7 @@ int RouteTable::getIndex(DWORD ip4) {
             if (inet_pton(AF_INET, ips->IpAddress.String, &ia) <= 0)
                 return -1;
 
-            if (ia.S_un.S_addr == ip4)
+            if (ia.S_un.S_addr == netIp4)
                 return ad->Index;
         }
     }

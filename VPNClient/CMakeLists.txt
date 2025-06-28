@@ -29,6 +29,8 @@ add_executable(VPNClient
   ../common/protocol.cpp
   ../common/ProtoBuilder.h
   ../common/ProtoBuilder.cpp
+  ../common/adapteraddr.h
+  ../common/adapteraddr.cpp
 )
 
 target_link_libraries(VPNClient Qt${QT_VERSION_MAJOR}::Core Qt${QT_VERSION_MAJOR}::Network  Ws2_32.lib Iphlpapi.lib wpcap.lib)
