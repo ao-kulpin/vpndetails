@@ -15,13 +15,15 @@ public:
 
     unsigned            getReadState() const        { return mReadPtr; }
     void                setReadState(unsigned rs)   { mReadPtr = rs; }
+
+    bool                write(const u_char* _data, unsigned _len);
+    bool                read(u_char* _data, unsigned _len);
+
 private:
     u_char*             mData = nullptr;
     const unsigned      MaxBufSize = 1024;
     unsigned            mReadPtr = 0;
     unsigned            mWritePtr = 0;
-    bool                write(const u_char* _data, unsigned _len);
-    bool                read(u_char* _data, unsigned _len);
 };
 
 #endif // RINGBUFFER_H

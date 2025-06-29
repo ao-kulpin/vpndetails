@@ -33,6 +33,8 @@ add_executable(VPNClient
   ../common/adapteraddr.cpp
   ../common/ringbuffer.h
   ../common/ringbuffer.cpp
+  ../common/inputreader.h
+  ../common/inputreader.cpp
 )
 
 target_link_libraries(VPNClient Qt${QT_VERSION_MAJOR}::Core Qt${QT_VERSION_MAJOR}::Network  Ws2_32.lib Iphlpapi.lib wpcap.lib)
