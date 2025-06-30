@@ -44,6 +44,7 @@ public:
 
     HANDLE       quitEvent      {0};
     bool         haveQuit       {false};
+    unsigned     ringBufSize    {200 * 1024};
 
     using QueueElemType =       std::unique_ptr<IPPacket>;
     std::queue<QueueElemType>   virtReceiveQueue;

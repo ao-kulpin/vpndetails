@@ -6,9 +6,11 @@
 #include "ClientData.h"
 
 VPNSocket::VPNSocket(QObject *parent) :
-    QObject(parent)
+    QObject(parent),
+    mInputReader(cdata.ringBufSize)
 {
     mTcpSocket.reset(new QTcpSocket(this));
+    connect(&mInputReader, &InputReader::peerReqest, this, &VPNSocket::onPeerRequest);
     connect(mTcpSocket.get(), &QTcpSocket::connected, this, &VPNSocket::onConnected);
     connect(mTcpSocket.get(), &QTcpSocket::readyRead, this, &VPNSocket::onReadyRead);
     connect(mTcpSocket.get(), &QTcpSocket::errorOccurred, this, &VPNSocket::onError);
@@ -41,6 +43,33 @@ void VPNSocket::onConnected() {
     }
 }
 
+void VPNSocket::onPeerRequest(const VpnHeader* _request) {
+    switch (_request->op) {
+        case VpnOp::ServerHello: {
+            auto* shello = (const VpnServerHello*) _request;
+            cdata.clientId = ntohl(shello->clientId);
+            printf("*** ServerHello received, clientId=%d\n", cdata.clientId);
+
+            break;
+        }
+
+        case VpnOp::IPPacket: {
+            auto* vip = (const VpnIPPacket*) _request;
+            u_int dataSize = ntohl(vip->dataSize);
+            printf("+++ VpnIPPacket received: client=%lu size=%u\n",
+                   ntohl(vip->clientId), dataSize);
+
+            putToServerQueue(ProtoBuilder::decomposeIPacket(*vip));
+
+            break;
+        }
+        default:
+            printf("*** VPNSocket::onPeerRequest() failed with unknown op: %d\n",
+                   _request->op);
+    }
+
+}
+
 void VPNSocket::onReadyRead() {
     const auto ba = mTcpSocket->bytesAvailable();
     printf("+++ VPNSocket::onReadyRead(%lld)\n", ba);
@@ -48,46 +77,9 @@ void VPNSocket::onReadyRead() {
     if (ba <= 0)
         return;
 
-    QByteArray vpnData = mTcpSocket->readAll();
-    char* start  = vpnData.data();
-    auto* record = start;
-    while (record - start < vpnData.size()) {
-        const auto* vhead = reinterpret_cast<const VpnHeader*>(record);
-        if (ntohl(vhead->sign) != VpnSignature) {
-            printf("*** VPNSocket::onReadyRead() failed with wrong signature: %08X\n",
-                   vhead->sign);
-            return;
-        }
-
-        switch(ntohs(vhead->op)) {
-
-        case VpnOp::ServerHello: {
-            auto* shello = reinterpret_cast<const VpnServerHello*>(record);
-            cdata.clientId = ntohl(shello->clientId);
-            printf("*** ServerHello received, clientId=%d\n", cdata.clientId);
-
-            record += sizeof (VpnServerHello);
-            break;
-        }
-
-        case VpnOp::IPPacket: {
-            auto* vip = (VpnIPPacket*) record;
-            u_int dataSize = ntohl(vip->dataSize);
-            printf("+++ VpnIPPacket received: client=%lu size=%u\n",
-                   ntohl(vip->clientId), dataSize);
-
-            putToServerQueue(ProtoBuilder::decomposeIPacket(*vip));
-
-            record += sizeof(VpnIPPacket) + dataSize;
-            break;
-        }
-
-        default:
-            printf("*** VPNSocket::onReadyRead() failed with wrong operator: %d\n",
-                   vhead->op);
-            return;
-        }
-    }
+    auto vpnData = mTcpSocket->readAll();
+    auto* dataPtr  = (const u_char*) vpnData.data();
+    mInputReader.takeInput(dataPtr, vpnData.size());
 }
 
 bool VPNSocket::event(QEvent *event) {

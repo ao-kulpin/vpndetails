@@ -8,6 +8,7 @@
 #include <QEvent>
 
 #include "ClientData.h"
+#include "inputreader.h"
 
 class VPNSocket : public QObject {
     Q_OBJECT
@@ -24,6 +25,7 @@ private:
     void putToServerQueue(IPPacketPtr _packet);
 
     std::unique_ptr<QTcpSocket> mTcpSocket;
+    InputReader                 mInputReader;
 
 protected:
     bool event(QEvent *event) override;
@@ -33,7 +35,7 @@ private slots:
     void onReadyRead();
     void onError(QAbstractSocket::SocketError socketError);
     void onDisconnected();
-
+    void onPeerRequest(const VpnHeader* _request);
 };
 
 class VirtReceiver : public QThread
