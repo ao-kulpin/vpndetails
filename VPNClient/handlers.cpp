@@ -44,7 +44,8 @@ void VPNSocket::onConnected() {
 }
 
 void VPNSocket::onPeerRequest(const VpnHeader* _request) {
-    switch (_request->op) {
+    printf("+++ VPNSocket::onPeerRequest()\n");
+    switch (ntohs(_request->op)) {
         case VpnOp::ServerHello: {
             auto* shello = (const VpnServerHello*) _request;
             cdata.clientId = ntohl(shello->clientId);
@@ -65,7 +66,7 @@ void VPNSocket::onPeerRequest(const VpnHeader* _request) {
         }
         default:
             printf("*** VPNSocket::onPeerRequest() failed with unknown op: %d\n",
-                   _request->op);
+                   ntohs(_request->op));
     }
 
 }
@@ -134,6 +135,9 @@ u_short VPNSocket::peerPort() {
 
 
 void VPNSocket::sendVirtPacket(const IPPacket& _packet) {
+    printf("+++ VPNSocket::sendVirtPacket 1  packet %p thread %p\n",
+           &_packet, QThread::currentThread());
+
     u_int sendSize = 0;
     auto vip = ProtoBuilder::composeIPacket(_packet, cdata.clientId, &sendSize);
     mTcpSocket->write((const char*) vip.get(), sendSize);
@@ -172,19 +176,37 @@ void VirtReceiver::run() {
         BYTE* packet = WinTunLib::receivePacket(cdata.session, &packetSize);
         if (packet) {
             {
+                auto* iph = (IPHeader*) packet;
+                printf("+++ VirtReceiver::run() 1  packet %p thread %p proto %d src %s dst %s\n",
+                       packet,
+                       QThread::currentThread(),
+                       iph->proto,
+                       QHostAddress(ntohl(iph->srcAddr))
+                           .toString().toStdString().c_str(),
+                       QHostAddress(ntohl(iph->destAddr))
+                           .toString().toStdString().c_str());
+
                 QMutexLocker vrl (&cdata.virtReceiveMutex);
 
                 cdata.virtReceiveQueue.push(std::make_unique<IPPacket>(packet, packetSize));
-                ///cdata.virtReceiveWC.wakeAll();
-                wakeSender();
 
                 ++packetCount;
                 packetTotalSize += ntohs(((IPHeader*) packet)->totalLen);
                 if (packetCount % 100 == 0)
                     printf("Virtual Receiver: packets: %u size: %llu MB\n", packetCount, packetTotalSize >> 20);
-            }
 
-            WinTunLib::releaseReceivePacket(cdata.session, packet);
+                WinTunLib::releaseReceivePacket(cdata.session, packet);
+
+                printf("+++ VirtReceiver::run() 2  packet %p thread %p proto %d src %s dst %s\n",
+                       packet,
+                       QThread::currentThread(),
+                       iph->proto,
+                       QHostAddress(ntohl(iph->srcAddr))
+                           .toString().toStdString().c_str(),
+                       QHostAddress(ntohl(iph->destAddr))
+                           .toString().toStdString().c_str());
+            }
+            wakeSender();
         }
         else {
             switch (GetLastError())
@@ -264,6 +286,17 @@ bool VirtSender::send(const IPPacket& _packet) {
     memcpy(winTunPacket, _packet.data(), _packet.size());
 
     WinTunLib::sendPacket(session, winTunPacket);
+
+    auto* iph = _packet.header();
+    printf("+++ VirtSender::send() thread %p proto %d src %s dst %s\n",
+           QThread::currentThread(),
+           iph->proto,
+           QHostAddress(ntohl(iph->srcAddr))
+               .toString().toStdString().c_str(),
+           QHostAddress(ntohl(iph->destAddr))
+               .toString().toStdString().c_str());
+
+
     return true;
 }
 

@@ -45,7 +45,7 @@ bool RingBuffer::write(const u_char* _data, unsigned _len) {
 
 }
 bool RingBuffer::read(u_char* _data, unsigned _len) {
-    if (_len < size())
+    if (size() < _len)
         return false;
 
     const unsigned part1Len = std::min(_len, MaxBufSize - mReadPtr);

@@ -12,9 +12,11 @@ bool InputReader::takeInput(const u_char* _data, unsigned _len) {
     auto ringBufState = mRingBuf.getReadState();
 
     Killer stateRestorer ([&] {
+        printf("+++ setReadState(%d)\n", ringBufState);
         mRingBuf.setReadState(ringBufState);
     });
 
+printf("+++ InputReader::takeInput() 1\n");
     while (true) {
         ringBufState = mRingBuf.getReadState();
 
@@ -23,6 +25,8 @@ bool InputReader::takeInput(const u_char* _data, unsigned _len) {
         if (!mRingBuf.read(requestBuf, sizeof(VpnHeader)))
             return true;
 
+        printf("+++ InputReader::takeInput() 2\n");
+
         auto* vph = (VpnHeader*) requestBuf;
         if (ntohl(vph->sign) != VpnSignature) {
             printf("*** Wrong signature (%08lx) is receved\n", ntohl(vph->sign));
@@ -30,8 +34,9 @@ bool InputReader::takeInput(const u_char* _data, unsigned _len) {
         }
 
         uchar* headerEnd = requestBuf + sizeof(VpnHeader);
+    printf("+++ InputReader::takeInput() 3 op=%d\n", ntohs(vph->op));
 
-        switch(htons(vph->op)) {
+        switch(ntohs(vph->op)) {
 
             case VpnOp::ClientHello:
                 break;
@@ -51,7 +56,7 @@ bool InputReader::takeInput(const u_char* _data, unsigned _len) {
 
                 auto* ipp = (VpnIPPacket*) requestBuf;
 
-                if (!mRingBuf.read(ipp->data, ipp->dataSize))
+                if (!mRingBuf.read(ipp->data, ntohl(ipp->dataSize)))
                     return true;
 
                 break;
@@ -61,6 +66,7 @@ bool InputReader::takeInput(const u_char* _data, unsigned _len) {
                 printf("*** Unknown peer request (%d)\n", htons(vph->op));
                 return false;
         }
+            printf("+++ Emit Peerrequest !!!\n");
         emit peerReqest(vph);
     }
 

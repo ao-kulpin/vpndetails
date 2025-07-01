@@ -119,6 +119,10 @@ bool RouteTable::createNewDefault() {
 }
 
 bool RouteTable::createServerRoute() {
+    if (cdata.serverIP.toIPv4Address()
+        == QHostAddress("127.0.0.1").toIPv4Address())
+        return true;
+
     MIB_IPFORWARD_ROW2  route = {0};
     InitializeIpForwardEntry(&route);
 
@@ -174,6 +178,10 @@ bool RouteTable::deleteNewDefault() {
     }
 }
 bool RouteTable::deleteServerRoute() {
+
+    if (cdata.serverIP.toIPv4Address()
+        == QHostAddress("127.0.0.1").toIPv4Address())
+        return true;
 
     MIB_IPFORWARD_ROW2  route = {0};
     InitializeIpForwardEntry(&route);
