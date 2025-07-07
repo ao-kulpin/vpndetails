@@ -46,6 +46,21 @@ void VirtReceiver::run() {
             const auto* iph = (IPHeader*) packet;
             if ((iph->ver_ihl >> 4) == 4) // take only IPv4 packets
             {
+                auto* iph = (IPHeader*) packet;
+                printf("+++ VirtReceiver::run() thread %p proto %d src %s dst %s\n",
+                       QThread::currentThread(),
+                       iph->proto,
+                       QHostAddress(ntohl(iph->srcAddr))
+                                .toString().toStdString().c_str(),
+                        QHostAddress(ntohl(iph->destAddr))
+                                .toString().toStdString().c_str());
+                if(iph->proto == IPPROTO_TCP) {
+                    auto* tch = (TCPHeader*) (packet + iph->size());
+                    printf("+++ TCP: ports %d/%d seqs %lu/%lu win %d flags %X\n",
+                           ntohs(tch->sport), ntohs(tch->dport),
+                           ntohl(tch->seq), ntohl(tch->ackSeq),
+                           ntohs(tch->window), *((u_char*)&tch->window - 1));
+                }
                 QMutexLocker vrl (&bdata.virtReceiveMutex);
 
                 if (++packetCount % 50 == 0)
@@ -53,11 +68,12 @@ void VirtReceiver::run() {
 
                 bdata.virtReceiveQueue.push(std::make_unique<IPPacket>(packet, packetSize));
 ///////////                bdata.virtReceiveQueue.push(std::make_unique<IPPacket>(packet, iph->totalLen));
+
+                WinTunLib::
+                    releaseReceivePacket(bdata.session, packet);
+
                 bdata.virtReceiveWC.wakeAll();
             }
-
-            WinTunLib::releaseReceivePacket(bdata.session, packet);
-
         }
         else {
             switch (GetLastError())
@@ -201,6 +217,23 @@ void RealSender::closeAdapter() {
 bool RealSender::send(const IPPacket& _packet) {
     EthernetFrame eframe(mEthHeader, _packet);
 
+    auto* iph = _packet.header();
+    printf("+++ RealSender::send: thread %p proto %d src %s dst %s\n",
+           QThread::currentThread(),
+           iph->proto,
+           QHostAddress(ntohl(iph->srcAddr))
+               .toString().toStdString().c_str(),
+           QHostAddress(ntohl(iph->destAddr))
+               .toString().toStdString().c_str());
+    if(iph->proto == IPPROTO_TCP) {
+        auto* tch = _packet.tcpHeader();
+        printf("+++ TCP: ports %d/%d seqs %lu/%lu win %d flags %X\n",
+               ntohs(tch->sport), ntohs(tch->dport),
+               ntohl(tch->seq), ntohl(tch->ackSeq),
+               ntohs(tch->window), *((u_char*)&tch->window - 1));
+    }
+
+
     return pcap_sendpacket(mPcapHandle, eframe.data(), eframe.size()) == 0;
 }
 
@@ -208,6 +241,8 @@ bool RealSender::updatePacket(IPPacket& _packet) {
     IPHeader* header = _packet.header();
     char buf[128];
     headPrint(header, buf);
+
+    printf("+++ RealSender::updatePacket: %s\n", buf);
 
     if (header->srcAddr == htonl(bdata.virtAdapterIP.toIPv4Address())) {
         header->srcAddr = htonl(bdata.realAdapterIP.toIPv4Address());
@@ -247,8 +282,28 @@ void RealReceiver::pcapHandler(const pcap_pkthdr *header, const u_char *pkt_data
         return;
 
     char buf[128];
+
+
     headPrint(iph, buf);
     printf("pcapHandler: %s\n", buf);
+    if ((iph->ver_ihl >> 4) == 4) // take only IPv4 packets
+    {
+        printf("+++ RealReceiver::pcapHandler thread %p proto %d src %s dst %s\n",
+               QThread::currentThread(),
+               iph->proto,
+               QHostAddress(ntohl(iph->srcAddr))
+                   .toString().toStdString().c_str(),
+               QHostAddress(ntohl(iph->destAddr))
+                   .toString().toStdString().c_str());
+        if(iph->proto == IPPROTO_TCP) {
+            auto* tch = (TCPHeader*) ((u_char*) iph + iph->size());
+            printf("+++ TCP: ports %d/%d seqs %lu/%lu win %d flags %X\n",
+                   ntohs(tch->sport), ntohs(tch->dport),
+                   ntohl(tch->seq), ntohl(tch->ackSeq),
+                   ntohs(tch->window), *((u_char*)&tch->window - 1));
+        }
+    }
+
 
     bdata.realReceiveQueue.push(std::make_unique<IPPacket>((const u_char*) iph, ntohs(iph->totalLen)));
     bdata.realReceiveWC.wakeAll();
