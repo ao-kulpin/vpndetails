@@ -20,6 +20,7 @@
 
 #include "protocol.h"
 #include "vpntypes.h"
+#include "rawsocket.h"
 
 struct PortKey {
     u_int       clientId;
@@ -70,8 +71,8 @@ public:
     std::atomic<u_int>          clientCount {0};
     std::atomic<u_int64>        serverTimer {0};
     u_short                     serverPort {55555};
-///    QHostAddress                realAdapterIP {"192.168.0.104"};
-    QHostAddress                realAdapterIP {"192.168.8.101"};
+ ///   QHostAddress                realAdapterIP {"192.168.0.101"};
+    QHostAddress                realAdapterIP {"192.168.8.103"};
 ///    QHostAddress                realAdapterIP {"194.87.138.48"};
     bool                        haveQuit {false};
 
@@ -93,6 +94,8 @@ public:
     qint64                      arpTime {5000}; //{2000}; // ms
 
 #endif //  __linux__
+
+    std::unique_ptr<RawTcpSocket> tcpSocket;
 
 };
 

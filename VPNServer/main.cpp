@@ -61,6 +61,14 @@ int main(int argc, char *argv[])
     }
 
     printf("Server is litening port %d\n", sdata.serverPort);
+
+    sdata.tcpSocket.reset(new RawTcpSocket(sdata.realAdapterIP.toIPv4Address()));
+
+    if (!sdata.tcpSocket->isOK()) {
+        printf("*** Can't create a raw TCP socket: %d\n", sdata.tcpSocket->getError());
+        return 1;
+    }
+
 //#if 0
 
     RealSender rsender;
