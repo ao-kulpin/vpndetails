@@ -69,6 +69,9 @@ int main(int argc, char *argv[])
         return 1;
     }
 
+    printf("*** RawTcpSocket is bound to %s\n",
+           QHostAddress(sdata.tcpSocket->getBoundIp()).toString().toStdString().c_str());
+
 //#if 0
 
     RealSender rsender;

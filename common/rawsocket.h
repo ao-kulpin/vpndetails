@@ -14,6 +14,7 @@ public:
 
     bool isOK()                         { return mError == 0; }
     int  getError()                     { return mError; }
+    IP4Addr getBoundIp();
 
     bool send(const IPPacket& _packet);
     void close();

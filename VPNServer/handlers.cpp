@@ -438,9 +438,14 @@ void RealSender::closeAdapter() {
 }
 
 bool RealSender::send(const IPPacket& _packet) {
-    EthernetFrame eframe(mEthHeader, _packet);
-
-    return pcap_sendpacket(mPcapHandle, eframe.data(), eframe.size()) == 0;
+    const auto* iph = _packet.header();
+    printf("+++ RealSender::send(%d)\n", iph->proto);
+    if (iph->proto == IPPROTO_TCP || iph->proto == IPPROTO_ICMP)
+        return sdata.tcpSocket->send(_packet);
+    else {
+        EthernetFrame eframe(mEthHeader, _packet);
+        return pcap_sendpacket(mPcapHandle, eframe.data(), eframe.size()) == 0;
+    }
 }
 
 void realReceiveHandler(u_char *param, const pcap_pkthdr *header, const u_char *pkt_data) {

@@ -72,7 +72,7 @@ public:
     std::atomic<u_int64>        serverTimer {0};
     u_short                     serverPort {55555};
  ///   QHostAddress                realAdapterIP {"192.168.0.101"};
-    QHostAddress                realAdapterIP {"192.168.8.103"};
+    QHostAddress                realAdapterIP {"192.168.8.104"};
 ///    QHostAddress                realAdapterIP {"194.87.138.48"};
     bool                        haveQuit {false};
 
