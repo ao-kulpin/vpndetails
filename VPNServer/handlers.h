@@ -102,4 +102,10 @@ public:
         void    realReceiveHandler(u_char *param, const pcap_pkthdr *header, const u_char *pkt_data);
 };
 
+class RawSockReceiver : public QThread
+{
+    Q_OBJECT
+    void run() override;
+};
+
 #endif // HANDLERS_H

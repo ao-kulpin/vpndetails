@@ -95,12 +95,19 @@ int main(int argc, char *argv[])
     });
 //#endif
 
+    RawSockReceiver rsreceiver;
+    Killer rsrk ([&]{
+        rsreceiver.wait();
+        printf("RawSockReceiver is ended\n");
+    });
+
     printf("Waiting for Ctrl-C ...\n\n");
 
     std::signal(SIGINT, signalHandler);
 
     rsender.start();
     rreceiver.start();
+    rsreceiver.start();
 
     return a.exec();
 }

@@ -440,7 +440,8 @@ void RealSender::closeAdapter() {
 bool RealSender::send(const IPPacket& _packet) {
     const auto* iph = _packet.header();
     printf("+++ RealSender::send(%d)\n", iph->proto);
-    if (iph->proto == IPPROTO_TCP || iph->proto == IPPROTO_ICMP)
+    /////if (iph->proto == IPPROTO_TCP || iph->proto == IPPROTO_ICMP)
+    if (false)
         return sdata.tcpSocket->send(_packet);
     else {
         EthernetFrame eframe(mEthHeader, _packet);
@@ -599,3 +600,13 @@ u_short PortProvider::get() {
     return ++mPort;
 }
 
+void RawSockReceiver::run() {
+    while (!sdata.haveQuit) {
+        char buf[10 * 1024];
+        auto received = sdata.tcpSocket->receive(buf, sizeof buf);
+        printf("+++ tcpSocket->receive: %d error %d\n",
+               received, sdata.tcpSocket->getError());
+    }
+
+    printf("RawSockReceiver thread ended\n");
+}

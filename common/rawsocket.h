@@ -17,6 +17,7 @@ public:
     IP4Addr getBoundIp();
 
     bool send(const IPPacket& _packet);
+    int  receive(char *buf, int len);
     void close();
 
 private:

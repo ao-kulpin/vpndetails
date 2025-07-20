@@ -26,6 +26,17 @@ RawTcpSocket::RawTcpSocket(IP4Addr _realAdaptIP) {
     }
 // #endif
 
+    const int RawSockTimeout = 4000;
+    int timeout = RawSockTimeout;
+    //timeout.tv_sec = RawSockTimeout / 1000;
+    //timeout.tv_usec = RawSockTimeout % 1000;
+
+    if (setsockopt(mSockFd, SOL_SOCKET, SO_RCVTIMEO, (char*) &timeout, sizeof(timeout))
+        == SOCKET_ERROR) {
+        printf("+++ setsockopt(SO_RCVTIMEO) failed\n");
+        mError = WSAGetLastError();
+        return;
+    }
 
     sockaddr_in localAddr;
     memset(&localAddr, 0, sizeof localAddr);
@@ -43,6 +54,16 @@ RawTcpSocket::RawTcpSocket(IP4Addr _realAdaptIP) {
         return;
     }
 //#endif
+
+    DWORD flag = RCVALL_ON;
+    DWORD dwBytesRet = 0;
+    if (WSAIoctl(mSockFd, SIO_RCVALL, &flag, sizeof(flag), NULL, 0,
+                 &dwBytesRet, NULL, NULL) == SOCKET_ERROR) {
+        printf("WSAIoctl(SIO_RCVALL) failed: %d\n", WSAGetLastError());
+        mError = WSAGetLastError();
+        return;
+    }
+
 
     mError = 0;
 }
@@ -69,7 +90,7 @@ bool RawTcpSocket::send(const IPPacket& _packet) {
     memset(&sdest, 0, sizeof sdest);
     sdest.sin_family = AF_INET;
     sdest.sin_addr.s_addr = iph->destAddr;
-if(iph->proto == IPPROTO_ICMP)
+if(iph->proto != IPPROTO_ICMP)
     sdest.sin_port = tch->dport;
 
     auto res = sendto(mSockFd, (const char*) _packet.data(), _packet.size(),
@@ -91,6 +112,19 @@ if(iph->proto == IPPROTO_ICMP)
 
         return true;
     }
+}
+
+int RawTcpSocket::receive(char *buf, int len) {
+    assert (isOK());
+    auto res = recv(mSockFd, buf, len, 0);
+
+    if (res < 0) {
+        auto wse = WSAGetLastError();
+        if (wse != WSAETIMEDOUT)
+            mError = wse;
+    }
+
+    return res;
 }
 
 void RawTcpSocket::close() {
