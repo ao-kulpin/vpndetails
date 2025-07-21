@@ -207,7 +207,7 @@ u_short ClientSocket::getServerPort(u_short clientPort) {
       pi.clientIp   = pk.clientIp;
       pi.clientPort = pk.clientPort;
 
-      pi.serverPort = sdata.portProvider.get();
+      pi.serverPort = sdata.portProvider.get(pi);
 
       sdata.clientPortMap[pk] = pi;
       sdata.serverPortMap[pi.serverPort] = pi;
@@ -594,11 +594,33 @@ bool operator < (const ClientRequestKey& lhs, const ClientRequestKey& rhs) {
                                     : lhs.destIp < rhs.destIp;
 }
 
+u_short PortProvider::get(PortInfo& _pi) {
+    _pi.serverPort = 0;
+    _pi.sock = INVALID_SOCKET;
+    SOCKET sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (sock == INVALID_SOCKET)
+        return 0;
 
-u_short PortProvider::get() {
-    if (mPort >= PortMax)
-        mPort = PortMin;
-    return ++mPort;
+    sockaddr_in localAddr;
+    memset(&localAddr, 0, sizeof localAddr);
+    localAddr.sin_family        = AF_INET;
+    localAddr.sin_addr.s_addr   = htonl(sdata.realAdapterIP.toIPv4Address());
+    localAddr.sin_port = 0; /////
+
+    if (bind(sock, (sockaddr*) &localAddr, sizeof localAddr) == SOCKET_ERROR)
+        return 0;
+
+    sockaddr_in bound_addr;
+    int addr_len = sizeof bound_addr;
+    if (getsockname(sock, (sockaddr*) &bound_addr, &addr_len) < 0)
+        return 0;
+
+    _pi.sock = sock;
+    _pi.serverPort = ntohs(bound_addr.sin_port);
+
+    printf("+++ PortProvider::get sock %d port %d\n", sock, _pi.serverPort);
+
+    return _pi.serverPort;
 }
 
 void RawSockReceiver::run() {

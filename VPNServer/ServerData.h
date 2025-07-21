@@ -35,6 +35,7 @@ struct PortInfo {
     IP4Addr     clientIp;
     u_short     clientPort;
     u_short     serverPort;
+    SOCKET      sock;
 };
 
 class ClientRequestKey {
@@ -58,7 +59,7 @@ using ClientRequestVector = std::vector<ClientRequestInfo>;
 class PortProvider {
 public:
     static const int PortMin = 49152, PortMax = 0xFFFF;
-    u_short get();
+    u_short get(PortInfo& _pi);
 
 private:
     u_int   mPort = PortMin;
