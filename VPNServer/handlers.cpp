@@ -445,7 +445,8 @@ bool RealSender::send(const IPPacket& _packet) {
         return sdata.tcpSocket->send(_packet);
     else {
         EthernetFrame eframe(mEthHeader, _packet);
-        return pcap_sendpacket(mPcapHandle, eframe.data(), eframe.size()) == 0;
+        ///// return pcap_sendpacket(mPcapHandle, eframe.data(), eframe.size()) == 0;
+        return pcap_inject(mPcapHandle, eframe.data(), eframe.size()) >= 0;
     }
 }
 
