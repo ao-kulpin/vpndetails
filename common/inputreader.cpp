@@ -66,8 +66,8 @@ printf("+++ InputReader::takeInput() 1\n");
                 printf("*** Unknown peer request (%d)\n", htons(vph->op));
                 return false;
         }
-            printf("+++ Emit Peerrequest !!!\n");
-        emit peerReqest(vph);
+        printf("+++ Emit PeerRequest !!!\n");
+        emit peerRequest(vph);
     }
 
 }

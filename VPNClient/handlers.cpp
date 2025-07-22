@@ -10,7 +10,7 @@ VPNSocket::VPNSocket(QObject *parent) :
     mInputReader(cdata.ringBufSize)
 {
     mTcpSocket.reset(new QTcpSocket(this));
-    connect(&mInputReader, &InputReader::peerReqest, this, &VPNSocket::onPeerRequest);
+    connect(&mInputReader, &InputReader::peerRequest, this, &VPNSocket::onPeerRequest);
     connect(mTcpSocket.get(), &QTcpSocket::connected, this, &VPNSocket::onConnected);
     connect(mTcpSocket.get(), &QTcpSocket::readyRead, this, &VPNSocket::onReadyRead);
     connect(mTcpSocket.get(), &QTcpSocket::errorOccurred, this, &VPNSocket::onError);

@@ -32,11 +32,13 @@ static
 ClientSocket::ClientSocket(QTcpSocket* _socket, u_int clientId, QObject *parent) :
     QObject(parent),
     mSocket(_socket),
-    mClientId(clientId)
+    mClientId(clientId),
+    mInputReader(sdata.ringBufSize)
 {
     printf("\n+++ ClientSocket::ClientSocket raw ptr=%p smart ptr=%p !!!\n\n",
            _socket, mSocket.get());
 
+    connect(&mInputReader, &InputReader::peerRequest, this, &ClientSocket::onPeerRequest);
     connect(mSocket.get(), &QTcpSocket::readyRead, this,
             &ClientSocket::onReadyRead); //, Qt::DirectConnection);
 
@@ -47,24 +49,10 @@ ClientSocket::ClientSocket(QTcpSocket* _socket, u_int clientId, QObject *parent)
     onReadyRead(); // first segment of data, if any
 }
 
-void ClientSocket::onReadyRead() {
-    const auto ba = mSocket->bytesAvailable();
-    printf("ClientSocket::onReadyRead(%lld)\n", ba);
-    if (ba <= 0)
-        return;
-
+void ClientSocket::onPeerRequest(const VpnHeader* _request) {
     ++ sdata.serverTimer;
-    QByteArray clientData = mSocket->readAll();
-    char* start  = clientData.data();
-    auto* record = start;
-    while (record - start < clientData.size()) {
-        const auto* vhead = reinterpret_cast<const VpnHeader*>(record);
-        if (ntohl(vhead->sign) != VpnSignature) {
-            printf("*** ClientHandler::onReadyRead() failed with wrong signature: %08X\n",
-                   vhead->sign);
-            return;
-        }
-        switch(ntohs(vhead->op)) {
+
+    switch(ntohs(_request->op)) {
         case VpnOp::ClientHello: {
             printf("+++ ClientHello received\n");
 
@@ -72,11 +60,11 @@ void ClientSocket::onReadyRead() {
             shello.clientId = htonl(mClientId);
             mSocket->write((const char*) &shello, sizeof shello);
 
-            record += sizeof(VpnClientHello);
             break;
         }
         case VpnOp::IPPacket: {
-            auto* vip = (VpnIPPacket*) record;
+
+            auto* vip = (VpnIPPacket*) _request;
             static int count = 0;
             ///if (++ count % 10 == 0)
             ///    printf("+++ %d VpnIPPacket received: client=%lu size=%lu\n", count,
@@ -85,22 +73,34 @@ void ClientSocket::onReadyRead() {
             auto packet = ProtoBuilder::decomposeIPacket(*vip);
 
             if (updateClientPacket(*packet)) {
-              // put packet into queue
+                // put packet into queue
 
-              QMutexLocker crl (&sdata.clientReceiveMutex);
-              sdata.clientReceiveQueue.push(std::move(packet));
-              sdata.clientReceiveWC.wakeAll();
+                QMutexLocker crl (&sdata.clientReceiveMutex);
+                sdata.clientReceiveQueue.push(std::move(packet));
+                sdata.clientReceiveWC.wakeAll();
             }
 
-            record += sizeof(VpnIPPacket) + ntohl(vip->dataSize);
             break;
         }
-        default:
-            printf("*** ClientSocket::onReadyRead() failed with wrong operator: %d\n",
-                   vhead->op);
+        default: {
+            printf("*** ClientSocket::onPeerRequest() failed with wrong operator: %d\n",
+                   ntohs(_request->op));
             return;
         }
     }
+}
+
+void ClientSocket::onReadyRead() {
+    const auto ba = mSocket->bytesAvailable();
+    printf("+++ VPNSocket::onReadyRead(%lld)\n", ba);
+
+    if (ba <= 0)
+        return;
+
+    auto vpnData = mSocket->readAll();
+    auto* dataPtr  = (const u_char*) vpnData.data();
+    mInputReader.takeInput(dataPtr, vpnData.size());
+
 }
 void ClientSocket::onError(QAbstractSocket::SocketError socketError) {
     printf("\n*** ClientSocket: Signal Error=%d state=%d !!!\n\n", int(socketError),
@@ -618,7 +618,7 @@ u_short PortProvider::get(PortInfo& _pi) {
     _pi.sock = sock;
     _pi.serverPort = ntohs(bound_addr.sin_port);
 
-    printf("+++ PortProvider::get sock %d port %d\n", sock, _pi.serverPort);
+    printf("+++ PortProvider::get sock %lld port %d\n", sock, _pi.serverPort);
 
     return _pi.serverPort;
 }

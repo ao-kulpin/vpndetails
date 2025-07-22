@@ -76,6 +76,7 @@ public:
     QHostAddress                realAdapterIP {"192.168.8.104"};
 ///    QHostAddress                realAdapterIP {"194.87.138.48"};
     bool                        haveQuit {false};
+    unsigned                    ringBufSize {200 * 1024};
 
     std::map<PortKey, PortInfo> clientPortMap;
     std::map<u_short, PortInfo> serverPortMap;

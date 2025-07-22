@@ -46,6 +46,10 @@ add_executable(VPNServer
   ../common/adapteraddr.cpp
   ../common/rawsocket.h
   ../common/rawsocket.cpp
+  ../common/ringbuffer.h
+  ../common/ringbuffer.cpp
+  ../common/inputreader.h
+  ../common/inputreader.cpp
 )
 
 if (WIN32)

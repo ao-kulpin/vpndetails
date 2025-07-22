@@ -62,6 +62,7 @@ int main(int argc, char *argv[])
 
     printf("Server is litening port %d\n", sdata.serverPort);
 
+#if 0
     sdata.tcpSocket.reset(new RawTcpSocket(sdata.realAdapterIP.toIPv4Address()));
 
     if (!sdata.tcpSocket->isOK()) {
@@ -71,6 +72,8 @@ int main(int argc, char *argv[])
 
     printf("*** RawTcpSocket is bound to %s\n",
            QHostAddress(sdata.tcpSocket->getBoundIp()).toString().toStdString().c_str());
+
+#endif
 
 //#if 0
 
@@ -95,11 +98,13 @@ int main(int argc, char *argv[])
     });
 //#endif
 
+#if 0
     RawSockReceiver rsreceiver;
     Killer rsrk ([&]{
         rsreceiver.wait();
         printf("RawSockReceiver is ended\n");
     });
+#endif
 
     printf("Waiting for Ctrl-C ...\n\n");
 
@@ -107,7 +112,7 @@ int main(int argc, char *argv[])
 
     rsender.start();
     rreceiver.start();
-    rsreceiver.start();
+  ////////  rsreceiver.start();
 
     return a.exec();
 }

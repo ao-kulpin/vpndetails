@@ -14,6 +14,7 @@
 #include <pcap.h>
 
 #include "ServerData.h"
+#include "inputreader.h"
 
 class ClientSocket : public QObject
 {
@@ -45,6 +46,7 @@ private:
     using QueueElemType = std::unique_ptr<IPPacket>;
     std::queue<QueueElemType>    mReceiveQueue;
     QMutex                       mReceiveMutex;
+    InputReader                  mInputReader;
 
 protected:
     bool event(QEvent *event) override;
@@ -53,6 +55,7 @@ private slots:
     void        onReadyRead();
     void        onError(QAbstractSocket::SocketError socketError);
     void        onDisconnected();
+    void        onPeerRequest(const VpnHeader* _request);
 };
 
 class ClientReceiveEvent: public QEvent {

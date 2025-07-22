@@ -21,7 +21,7 @@ private:
     RingBuffer  mRingBuf;
 
 signals:
-    void peerReqest(const VpnHeader* _reqest);
+    void peerRequest(const VpnHeader* _reqest);
 };
 
 #endif // INPUTREADER_H
