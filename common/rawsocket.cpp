@@ -1,11 +1,31 @@
+#ifdef _WIN32
 #include <winsock2.h>
-//#include <windows.h>
-//#include <iphlpapi.h>
 #include <ws2tcpip.h>
+#endif
 
+#ifdef __linux__
+#include <unistd.h>
+#endif
 
 #include <QHostAddress>
 #include "rawsocket.h"
+
+static
+    int getError() {
+#ifdef _WIN32
+    return WSAGetLastError();
+#else
+    return errno;
+#endif
+}
+
+void closeSocket(SOCKET _sock) {
+#ifdef _WIN32
+    closesocket(_sock);
+#else
+    close(_sock);
+#endif
+}
 
 RawTcpSocket::RawTcpSocket(IP4Addr _realAdaptIP) {
     mSockFd = socket(AF_INET, SOCK_RAW, IPPROTO_RAW);
@@ -13,7 +33,7 @@ RawTcpSocket::RawTcpSocket(IP4Addr _realAdaptIP) {
 //////    mSockFd =  WSASocket(AF_INET, SOCK_RAW, IPPROTO_IP, NULL, 0, 0);
 
     if (mSockFd == INVALID_SOCKET) {
-        mError = WSAGetLastError();
+        mError = getError();
         return;
     }
 
@@ -21,7 +41,7 @@ RawTcpSocket::RawTcpSocket(IP4Addr _realAdaptIP) {
     int optval = 1;
     if (setsockopt(mSockFd, IPPROTO_IP, IP_HDRINCL,
                    (char*) &optval, sizeof(optval)) == SOCKET_ERROR) {
-        mError = WSAGetLastError();
+        mError = getError();
         return;
     }
 // #endif
@@ -34,7 +54,7 @@ RawTcpSocket::RawTcpSocket(IP4Addr _realAdaptIP) {
     if (setsockopt(mSockFd, SOL_SOCKET, SO_RCVTIMEO, (char*) &timeout, sizeof(timeout))
         == SOCKET_ERROR) {
         printf("+++ setsockopt(SO_RCVTIMEO) failed\n");
-        mError = WSAGetLastError();
+        mError = getError();
         return;
     }
 
@@ -47,23 +67,24 @@ RawTcpSocket::RawTcpSocket(IP4Addr _realAdaptIP) {
 
 //#if 0
     if (bind(mSockFd, (sockaddr*) &localAddr, sizeof localAddr) == SOCKET_ERROR) {
-        printf("+++ raw tcp bind: %08X/%08lX %d\n", _realAdaptIP, localAddr.sin_addr.s_addr, WSAGetLastError());
-        mError =  WSAGetLastError();
-        closesocket(mSockFd);
+        printf("+++ raw tcp bind: %08X/%08X %d\n", _realAdaptIP, localAddr.sin_addr.s_addr, getError());
+        mError =  getError();
+        closeSocket(mSockFd);
         mSockFd = INVALID_SOCKET;
         return;
     }
 //#endif
 
+#ifdef _WIN32
     DWORD flag = RCVALL_ON;
     DWORD dwBytesRet = 0;
     if (WSAIoctl(mSockFd, SIO_RCVALL, &flag, sizeof(flag), NULL, 0,
                  &dwBytesRet, NULL, NULL) == SOCKET_ERROR) {
-        printf("WSAIoctl(SIO_RCVALL) failed: %d\n", WSAGetLastError());
-        mError = WSAGetLastError();
+        printf("WSAIoctl(SIO_RCVALL) failed: %d\n", getError());
+        mError = getError();
         return;
     }
-
+#endif
 
     mError = 0;
 }
@@ -119,7 +140,7 @@ int RawTcpSocket::receive(char *buf, int len) {
     auto res = recv(mSockFd, buf, len, 0);
 
     if (res < 0) {
-        auto wse = WSAGetLastError();
+        auto wse = getError();
         if (wse != WSAETIMEDOUT)
             mError = wse;
     }

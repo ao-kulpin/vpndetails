@@ -194,8 +194,11 @@ printf("+++ getGatewayMacAddress 2 in=%s src %08X dest %08X\n", ifr.ifr_name, _s
     Killer sfk ([&] { close(sockFd); });
 
     struct timeval timeout;
-    timeout.tv_sec = sdata.arpTime / 1000;
-    timeout.tv_usec = sdata.arpTime % 1000;
+///    timeout.tv_sec = sdata.arpTime / 1000;
+///    timeout.tv_usec = sdata.arpTime % 1000;
+    const int ArpTime = 5000;
+    timeout.tv_sec = ArpTime / 1000;
+    timeout.tv_usec = ArpTime % 1000;
 
     if (setsockopt(sockFd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0)
         return false;
@@ -276,7 +279,7 @@ printf("+++ getGatewayMacAddress() type=%04X\n", ntohs(eh->ether_type));
             return true;
         }
 
-        if (QDateTime::currentMSecsSinceEpoch() - replyStart > sdata.arpTime)
+        if (QDateTime::currentMSecsSinceEpoch() - replyStart > ArpTime)
             //time out
             return false;
 

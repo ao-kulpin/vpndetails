@@ -1,10 +1,14 @@
 #ifndef RAWSOCKET_H
 #define RAWSOCKET_H
 
+#ifdef _WIN32
 #include <winsock2.h>
+#endif
 
 #include "vpntypes.h"
 #include "protocol.h"
+
+#include "pcap.h"
 
 class RawTcpSocket {
 public:
@@ -21,8 +25,8 @@ public:
     void close();
 
 private:
-    int     mError  = -1;
-    SOCKET  mSockFd = INVALID_SOCKET;
+    int         mError  = -1;
+    SOCKET      mSockFd = INVALID_SOCKET;
 };
 
 #endif // RAWSOCKET_H

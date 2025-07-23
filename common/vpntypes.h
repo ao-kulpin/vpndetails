@@ -11,4 +11,6 @@ typedef u_int32         IP4Addr;  // not u_long
 
 typedef unsigned long long u_int64;
 
+const int SOCKET_ERROR = -1;
+
 #endif // VPNTYPES_H
