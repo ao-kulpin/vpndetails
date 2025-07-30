@@ -64,6 +64,7 @@ bool AdapterAddr::getGatewayIP(IP4Addr adaptIp, IP4Addr *gatewayIP) {
     for (auto* adapt = getAdapts(); adapt; adapt = adapt->Next) {
         auto*  unic = adapt->FirstUnicastAddress;
         IP4Addr ip4 = ((sockaddr_in*) unic->Address.lpSockaddr)->sin_addr.S_un.S_addr;
+        printf("+++ ip4: %08X\n", ntohl(ip4));
 
         if (unic->Address.lpSockaddr->sa_family == AF_INET && netAdaptIp == ip4 && adapt->FirstGatewayAddress) {
             *gatewayIP = ntohl(

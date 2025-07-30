@@ -611,7 +611,13 @@ u_short PortProvider::get(PortInfo& _pi) {
         return 0;
 
     sockaddr_in bound_addr;
+
+#ifdef _WIN32
+    int     addr_len = sizeof bound_addr;
+#else
     u_int32 addr_len = sizeof bound_addr;
+#endif
+
     if (getsockname(sock, (sockaddr*) &bound_addr, &addr_len) < 0)
         return 0;
 
