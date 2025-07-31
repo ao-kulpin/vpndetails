@@ -59,17 +59,20 @@ bool AdapterAddr::getGatewayMacAddress(IP4Addr _srcIp,
 }
 
 bool AdapterAddr::getGatewayIP(IP4Addr adaptIp, IP4Addr *gatewayIP) {
-    IP4Addr netAdaptIp = htonl(adaptIp);
+    const IP4Addr netAdaptIp = htonl(adaptIp);
+
+    *gatewayIP = 0;
 
     for (auto* adapt = getAdapts(); adapt; adapt = adapt->Next) {
-        auto*  unic = adapt->FirstUnicastAddress;
-        IP4Addr ip4 = ((sockaddr_in*) unic->Address.lpSockaddr)->sin_addr.S_un.S_addr;
-        printf("+++ ip4: %08X\n", ntohl(ip4));
+        for (auto*  unic = adapt->FirstUnicastAddress; unic; unic = unic->Next) {
+            IP4Addr ip4 = ((sockaddr_in*) unic->Address.lpSockaddr)->sin_addr.S_un.S_addr;
+            printf("+++ ip4: %08X\n", ntohl(ip4));
 
-        if (unic->Address.lpSockaddr->sa_family == AF_INET && netAdaptIp == ip4 && adapt->FirstGatewayAddress) {
-            *gatewayIP = ntohl(
-                ((sockaddr_in*) adapt->FirstGatewayAddress->Address.lpSockaddr)->sin_addr.S_un.S_addr);
-            return true;
+            if (unic->Address.lpSockaddr->sa_family == AF_INET && netAdaptIp == ip4 && adapt->FirstGatewayAddress) {
+                *gatewayIP = ntohl(
+                    ((sockaddr_in*) adapt->FirstGatewayAddress->Address.lpSockaddr)->sin_addr.S_un.S_addr);
+                return true;
+            }
         }
     }
     return false;
@@ -143,6 +146,8 @@ printf("+++ ip %08X %08X fam %d\n", ((sockaddr_in*) adapt->ifa_addr)->sin_addr.s
 }
 
 bool AdapterAddr::getGatewayIP(IP4Addr adaptIp, IP4Addr *gatewayIP) {
+    *gatewayIP = 0;
+
     char adaptName[IFNAMSIZ];
     if (!getAdaptName(adaptIp, adaptName))
         return false;
