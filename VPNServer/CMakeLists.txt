@@ -52,6 +52,9 @@ add_executable(VPNServer
   ../common/inputreader.cpp
 )
 
+set(CMAKE_FIND_STATIC_PREFERENCES "STATIC")
+set(CMAKE_EXE_LINKER_FLAGS "-static -static-libstdc++ -static-libgcc")
+
 if (WIN32)
   target_link_libraries(VPNServer Qt${QT_VERSION_MAJOR}::Core Qt${QT_VERSION_MAJOR}::Network Ws2_32.lib Iphlpapi.lib wpcap.lib)
 elseif (UNIX)
