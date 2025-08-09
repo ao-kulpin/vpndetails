@@ -29,7 +29,7 @@ printf("+++ InputReader::takeInput() 1\n");
 
         auto* vph = (VpnHeader*) requestBuf;
         if (ntohl(vph->sign) != VpnSignature) {
-            printf("*** Wrong signature (%08lx) is receved\n", ntohl(vph->sign));
+            printf("*** Wrong signature (%08x) is receved\n", ntohl(vph->sign));
             return true;
         }
 

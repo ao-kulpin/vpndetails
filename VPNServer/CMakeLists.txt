@@ -24,7 +24,7 @@ find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Core Network)
 
 if (WIN32)
   include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/../common ${CMAKE_CURRENT_SOURCE_DIR}/../common/Npcap)
-  link_directories(${CMAKE_CURRENT_SOURCE_DIR}/../common/Npcap)
+  link_directories(${CMAKE_CURRENT_SOURCE_DIR}/../common/Npcap) #/usr/lib/gcc/x86_64-linux-gnu/13)
 elseif(UNIX)
   find_library(PCAP_LIBRARY pcap REQUIRED)
   find_path(PCAP_INCLUDE_DIR pcap.h REQUIRED)
@@ -53,7 +53,7 @@ add_executable(VPNServer
 )
 
 set(CMAKE_FIND_STATIC_PREFERENCES "STATIC")
-set(CMAKE_EXE_LINKER_FLAGS "-static -static-libstdc++ -static-libgcc")
+set(CMAKE_EXE_LINKER_FLAGS "-static-libgcc -static-libstdc++ -Wl,--trace")
 
 if (WIN32)
   target_link_libraries(VPNServer Qt${QT_VERSION_MAJOR}::Core Qt${QT_VERSION_MAJOR}::Network Ws2_32.lib Iphlpapi.lib wpcap.lib)

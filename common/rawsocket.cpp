@@ -93,11 +93,21 @@ IP4Addr RawTcpSocket::getBoundIp() {
     assert(isOK());
 
     sockaddr_in local_addr;
+
+#ifdef __linux__
+    socklen_t addr_len = sizeof local_addr;
+#else
     int addr_len = sizeof local_addr;
+#endif
+
     if (getsockname(mSockFd, (sockaddr*) &local_addr, &addr_len) < 0)
         return 0;
     else
+#ifdef _WIN32
         return ntohl(local_addr.sin_addr.S_un.S_addr);
+#else
+        return ntohl(local_addr.sin_addr.s_addr);
+#endif
 }
 
 bool RawTcpSocket::send(const IPPacket& _packet) {
@@ -114,7 +124,7 @@ bool RawTcpSocket::send(const IPPacket& _packet) {
 if(iph->proto != IPPROTO_ICMP)
     sdest.sin_port = tch->dport;
 
-    auto res = sendto(mSockFd, (const char*) _packet.data(), _packet.size(),
+    int res = sendto(mSockFd, (const char*) _packet.data(), _packet.size(),
            0, (sockaddr*) &sdest, sizeof sdest);
 
     if (res == SOCKET_ERROR) {
@@ -139,18 +149,26 @@ int RawTcpSocket::receive(char *buf, int len) {
     assert (isOK());
     auto res = recv(mSockFd, buf, len, 0);
 
+#ifdef _WIN32
     if (res < 0) {
         auto wse = getError();
         if (wse != WSAETIMEDOUT)
             mError = wse;
     }
+#endif
 
     return res;
 }
 
 void RawTcpSocket::close() {
     if (mSockFd != SOCKET_ERROR) {
+
+#ifdef _WIN32
         closesocket(mSockFd);
+#else
+        closeSocket(mSockFd);
+#endif
+
         mSockFd = SOCKET_ERROR;
     }
 }

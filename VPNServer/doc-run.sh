@@ -1,3 +1,3 @@
 #!/bin/sh
 
-docker run --rm -v ~/Qt:/Qt -v ~/work/VPN/code:/VPN/code vpnserver-bld
+docker run --rm -v ~/Qt:/Qt -v ~/data/VPN/code:/VPN/code vpnserver-bld

@@ -624,7 +624,11 @@ u_short PortProvider::get(PortInfo& _pi) {
     _pi.sock = sock;
     _pi.serverPort = ntohs(bound_addr.sin_port);
 
+#ifdef _WIN32
     printf("+++ PortProvider::get sock %lld port %d\n", sock, _pi.serverPort);
+#else
+    printf("+++ PortProvider::get sock %d port %d\n", sock, _pi.serverPort);
+#endif
 
     return _pi.serverPort;
 }
