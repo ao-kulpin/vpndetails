@@ -1,10 +1,6 @@
 #ifndef RAWSOCKET_H
 #define RAWSOCKET_H
 
-#ifdef _WIN32
-#include <winsock2.h>
-#endif
-
 #include "vpntypes.h"
 #include "protocol.h"
 
