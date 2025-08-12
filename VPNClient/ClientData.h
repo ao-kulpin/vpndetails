@@ -28,16 +28,16 @@ public:
     int          ringSize       {0x400000};
     int          defaultMetricAdd {100};
 
-    QHostAddress serverIP       {"127.0.0.1"};
-    //// QHostAddress serverIP       {"194.87.138.48"};
+    ////QHostAddress serverIP       {"127.0.0.1"};
+    QHostAddress serverIP       {"194.87.138.48"};
     u_short      serverPort     { 55555 };
     u_int        connectTime    { 20000 };
     u_int        clientId       { 0 };
     QHostAddress virtAdapterIP  {"10.6.7.7"};
     ///QHostAddress realAdapterIP  {"192.168.8.103"};
     /// QHostAddress realAdapterIP  {"192.168.0.104"};
-    ////QHostAddress realAdapterIP  {"192.168.0.103"};
-    QHostAddress realAdapterIP  {"127.0.0.1"};
+    QHostAddress realAdapterIP  {"192.168.8.100"};
+    ///QHostAddress realAdapterIP  {"127.0.0.1"};
 ///    QHostAddress                realAdapterIP {"194.87.138.48"};
 
     int          virtAdapterMaskLen {24};

@@ -440,8 +440,8 @@ void RealSender::closeAdapter() {
 bool RealSender::send(const IPPacket& _packet) {
     const auto* iph = _packet.header();
     printf("+++ RealSender::send(%d)\n", iph->proto);
-    /////if (iph->proto == IPPROTO_TCP || iph->proto == IPPROTO_ICMP)
-    if (false)
+    if (iph->proto == IPPROTO_TCP)
+/////    if (false)
         return sdata.tcpSocket->send(_packet);
     else {
         EthernetFrame eframe(mEthHeader, _packet);

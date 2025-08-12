@@ -28,7 +28,7 @@ void closeSocket(SOCKET _sock) {
 }
 
 RawTcpSocket::RawTcpSocket(IP4Addr _realAdaptIP) {
-    mSockFd = socket(AF_INET, SOCK_RAW, IPPROTO_RAW);
+    mSockFd = socket(AF_INET, SOCK_RAW, IPPROTO_TCP);
 ////////    mSockFd = socket(AF_INET, SOCK_RAW, IPPROTO_RAW);
 //////    mSockFd =  WSASocket(AF_INET, SOCK_RAW, IPPROTO_IP, NULL, 0, 0);
 
