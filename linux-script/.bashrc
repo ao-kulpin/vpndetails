@@ -156,3 +156,7 @@ function scp-ak() {
     scp $* root@akulpin2.ru:~/work/VPN/VPNServer/bin/
 }
 
+function ssh-ak() {
+        ssh root@194.87.138.48
+}
+

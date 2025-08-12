@@ -46,6 +46,7 @@ RawTcpSocket::RawTcpSocket(IP4Addr _realAdaptIP) {
     }
 // #endif
 
+#if 0
     const int RawSockTimeout = 4000;
     int timeout = RawSockTimeout;
     //timeout.tv_sec = RawSockTimeout / 1000;
@@ -57,6 +58,7 @@ RawTcpSocket::RawTcpSocket(IP4Addr _realAdaptIP) {
         mError = getError();
         return;
     }
+#endif
 
     sockaddr_in localAddr;
     memset(&localAddr, 0, sizeof localAddr);
