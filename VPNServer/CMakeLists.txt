@@ -46,6 +46,8 @@ add_executable(VPNServer
   ../common/adapteraddr.cpp
   ../common/rawsocket.h
   ../common/rawsocket.cpp
+  ../common/dummysocket.h
+  ../common/dummysocket.cpp
   ../common/ringbuffer.h
   ../common/ringbuffer.cpp
   ../common/inputreader.h

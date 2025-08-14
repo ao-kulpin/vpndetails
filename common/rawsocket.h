@@ -22,7 +22,7 @@ public:
 
 private:
     int         mError  = -1;
-    SOCKET      mSockFd = INVALID_SOCKET;
+    SOCKET      mSockFd = SOCKET_ERROR;
 };
 
 #endif // RAWSOCKET_H

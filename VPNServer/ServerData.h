@@ -21,6 +21,7 @@
 #include "protocol.h"
 #include "vpntypes.h"
 #include "rawsocket.h"
+#include "dummysocket.h"
 
 struct PortKey {
     u_int       clientId;
@@ -83,6 +84,7 @@ public:
     std::map<u_int, ClientSocket*> socketMap; // clientId -> clientSocket
 
     std::map<ClientRequestKey, std::unique_ptr<ClientRequestVector>> requestMap;
+    std::map<unsigned, std::unique_ptr<DummySocket>> dummySockMap;  // port -> DummySocket
 
     using QueueElemType = std::unique_ptr<IPPacket>;
     std::queue<QueueElemType>   clientReceiveQueue;

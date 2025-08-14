@@ -437,12 +437,22 @@ void RealSender::closeAdapter() {
     }
 }
 
+void RealSender::createDummySocket(unsigned _port) {
+    if (!sdata.dummySockMap.count(_port)) {
+        std::unique_ptr<DummySocket> newSock(new DummySocket(sdata.realAdapterIP.toIPv4Address(), _port));
+        printf("+++ createDummySocket(%d) -> %d\n", _port, newSock->getError());
+        sdata.dummySockMap[_port] = std::move(newSock);
+    }
+}
+
 bool RealSender::send(const IPPacket& _packet) {
     const auto* iph = _packet.header();
     printf("+++ RealSender::send(%d)\n", iph->proto);
-    if (iph->proto == IPPROTO_TCP)
+    if (iph->proto == IPPROTO_TCP) {
 /////    if (false)
+        createDummySocket(ntohs(_packet.tcpHeader()->sport));
         return sdata.tcpSocket->send(_packet);
+    }
     else {
         EthernetFrame eframe(mEthHeader, _packet);
         ///// return pcap_sendpacket(mPcapHandle, eframe.data(), eframe.size()) == 0;

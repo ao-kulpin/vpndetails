@@ -77,6 +77,7 @@ public:
     void closeAdapter();
     bool updatePacket(IPPacket& _packet);
     bool send(const IPPacket& _packet);
+    void createDummySocket(unsigned _port);
 
     IP4Addr mGatewayIP     = 0;
     u_char  mAdaptMac  [6] = { 0 };
