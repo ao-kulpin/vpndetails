@@ -30,7 +30,7 @@ private:
     bool                        updateClientPacket (IPPacket& _packet);
     bool                        updateServerPacket (IPPacket& _packet);
     u_short                     getClientPort(u_short serverPort);
-    u_short                     getServerPort(u_short clientPort);
+    u_short                     getServerPort(u_short clientPort, bool _listen);
     void                        sendReceivedPackets();
     void                        sendServerPacket(const IPPacket& _packet);
     void                        wakeClient();

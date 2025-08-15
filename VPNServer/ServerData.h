@@ -37,6 +37,7 @@ struct PortInfo {
     u_short     clientPort;
     u_short     serverPort;
     SOCKET      sock;
+    bool        listen;
 };
 
 class ClientRequestKey {
@@ -60,7 +61,7 @@ using ClientRequestVector = std::vector<ClientRequestInfo>;
 class PortProvider {
 public:
     static const int PortMin = 49152, PortMax = 0xFFFF;
-    u_short get(PortInfo& _pi);
+    u_short get(PortInfo& _pi, bool _listen);
 
 private:
     u_int   mPort = PortMin;
@@ -74,8 +75,8 @@ public:
     std::atomic<u_int64>        serverTimer {0};
     u_short                     serverPort {55555};
  ///   QHostAddress                realAdapterIP {"192.168.0.101"};
-//    QHostAddress                realAdapterIP {"192.168.8.100"};
-    QHostAddress                realAdapterIP {"194.87.138.48"};
+    QHostAddress                realAdapterIP {"192.168.8.100"};
+/////    QHostAddress                realAdapterIP {"194.87.138.48"};
     bool                        haveQuit {false};
     unsigned                    ringBufSize {200 * 1024};
 
@@ -99,7 +100,7 @@ public:
 
 #endif //  __linux__
 
-    std::unique_ptr<RawTcpSocket> tcpSocket;
+ ////   std::unique_ptr<RawTcpSocket> tcpSocket;
 
 };
 

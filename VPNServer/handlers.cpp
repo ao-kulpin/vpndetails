@@ -129,14 +129,14 @@ bool ClientSocket::updateClientPacket (IPPacket& _packet) {
     case IPPROTO_UDP: {
         auto* uph = _packet.udpHeader();
         auto sport = ntohs(uph->sport);
-        uph->sport = htons(getServerPort(sport));
+        uph->sport = htons(getServerPort(sport, false));
     }
     break;
 
     case IPPROTO_TCP: {
         auto* tch = _packet.tcpHeader();
         auto sport = ntohs(tch->sport);
-        tch->sport = htons(getServerPort(sport));
+        tch->sport = htons(getServerPort(sport, true));
     }
     break;
 
@@ -191,7 +191,7 @@ u_short ClientSocket::getClientPort(u_short serverPort) {
         return 0;
 }
 
-u_short ClientSocket::getServerPort(u_short clientPort) {
+u_short ClientSocket::getServerPort(u_short clientPort, bool _listen) {
     PortKey pk;
     pk.clientId = mClientId;
     pk.clientIp = virtAdapterIP.toIPv4Address();
@@ -207,7 +207,7 @@ u_short ClientSocket::getServerPort(u_short clientPort) {
       pi.clientIp   = pk.clientIp;
       pi.clientPort = pk.clientPort;
 
-      pi.serverPort = sdata.portProvider.get(pi);
+      pi.serverPort = sdata.portProvider.get(pi, _listen);
 
       sdata.clientPortMap[pk] = pi;
       sdata.serverPortMap[pi.serverPort] = pi;
@@ -449,9 +449,10 @@ bool RealSender::send(const IPPacket& _packet) {
     const auto* iph = _packet.header();
     printf("+++ RealSender::send(%d)\n", iph->proto);
     if (iph->proto == IPPROTO_TCP) {
-/////    if (false)
-        createDummySocket(ntohs(_packet.tcpHeader()->sport));
-        return sdata.tcpSocket->send(_packet);
+//////        createDummySocket(ntohs(_packet.tcpHeader()->sport));
+////        return sdata.tcpSocket->send(_packet);
+        EthernetFrame eframe(mEthHeader, _packet);
+        return pcap_inject(mPcapHandle, eframe.data(), eframe.size()) >= 0;
     }
     else {
         EthernetFrame eframe(mEthHeader, _packet);
@@ -604,11 +605,12 @@ bool operator < (const ClientRequestKey& lhs, const ClientRequestKey& rhs) {
                                     : lhs.destIp < rhs.destIp;
 }
 
-u_short PortProvider::get(PortInfo& _pi) {
+u_short PortProvider::get(PortInfo& _pi, bool _listen) {
     _pi.serverPort = 0;
+    _pi.listen = _listen;
     _pi.sock = INVALID_SOCKET;
-    SOCKET sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-    if (sock == INVALID_SOCKET)
+    SOCKET sock = socket(AF_INET, SOCK_STREAM, 0);
+    if (sock < 0)
         return 0;
 
     sockaddr_in localAddr;
@@ -617,7 +619,7 @@ u_short PortProvider::get(PortInfo& _pi) {
     localAddr.sin_addr.s_addr   = htonl(sdata.realAdapterIP.toIPv4Address());
     localAddr.sin_port = 0; /////
 
-    if (bind(sock, (sockaddr*) &localAddr, sizeof localAddr) == SOCKET_ERROR)
+    if (bind(sock, (sockaddr*) &localAddr, sizeof localAddr) < 0)
         return 0;
 
     sockaddr_in bound_addr;
@@ -640,15 +642,23 @@ u_short PortProvider::get(PortInfo& _pi) {
     printf("+++ PortProvider::get sock %d port %d\n", sock, _pi.serverPort);
 #endif
 
+    if (_listen) {
+        if (listen(sock, 10) < 0) {
+            printf("+++ Can't listen port %d\n", _pi.serverPort);
+            return 0;
+        }
+        printf("+++ Listening %s:%d ...\n", sdata.realAdapterIP.toString().toStdString().c_str(), _pi.serverPort);
+    }
+
     return _pi.serverPort;
 }
 
 void RawSockReceiver::run() {
     while (!sdata.haveQuit) {
         char buf[10 * 1024];
-        auto received = sdata.tcpSocket->receive(buf, sizeof buf);
-        printf("+++ tcpSocket->receive: %d error %d\n",
-               received, sdata.tcpSocket->getError());
+//////        auto received = sdata.tcpSocket->receive(buf, sizeof buf);
+///        printf("+++ tcpSocket->receive: %d error %d\n",
+////               received, sdata.tcpSocket->getError());
     }
 
     printf("RawSockReceiver thread ended\n");
