@@ -450,9 +450,9 @@ bool RealSender::send(const IPPacket& _packet) {
     printf("+++ RealSender::send(%d)\n", iph->proto);
     if (iph->proto == IPPROTO_TCP) {
 //////        createDummySocket(ntohs(_packet.tcpHeader()->sport));
-////        return sdata.tcpSocket->send(_packet);
-        EthernetFrame eframe(mEthHeader, _packet);
-        return pcap_inject(mPcapHandle, eframe.data(), eframe.size()) >= 0;
+        return sdata.tcpSocket->send(_packet);
+///        EthernetFrame eframe(mEthHeader, _packet);
+///        return pcap_inject(mPcapHandle, eframe.data(), eframe.size()) >= 0;
     }
     else {
         EthernetFrame eframe(mEthHeader, _packet);

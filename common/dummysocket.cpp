@@ -1,5 +1,9 @@
 #include "dummysocket.h"
 
+#ifdef __linux__
+#include <unistd.h>
+#endif
+
 static
 int getLastError() {
 #ifdef _WIN32

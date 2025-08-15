@@ -62,7 +62,7 @@ int main(int argc, char *argv[])
 
     printf("Server is litening port %d\n", sdata.serverPort);
 
-#if 0
+////#if 0
     sdata.tcpSocket.reset(new RawTcpSocket(sdata.realAdapterIP.toIPv4Address()));
 
     if (!sdata.tcpSocket->isOK()) {
@@ -73,7 +73,7 @@ int main(int argc, char *argv[])
     printf("*** RawTcpSocket is bound to %s\n",
            QHostAddress(sdata.tcpSocket->getBoundIp()).toString().toStdString().c_str());
 
-#endif
+/////#endif
 
 //#if 0
 
