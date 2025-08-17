@@ -208,6 +208,7 @@ u_short ClientSocket::getServerPort(u_short clientPort, bool _listen) {
       pi.clientPort = pk.clientPort;
 
       pi.serverPort = sdata.portProvider.get(pi, _listen);
+      printf("+++ Client port %d -> Server Port %d\n", clientPort, pi.serverPort);
 
       sdata.clientPortMap[pk] = pi;
       sdata.serverPortMap[pi.serverPort] = pi;
