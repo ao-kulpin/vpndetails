@@ -69,7 +69,7 @@ static int cb(struct nfq_q_handle *qh, struct nfgenmsg *nfmsg,
             printf("\t address: %08X(%s) -> %08X(%s)\n", ntohl(iph->srcAddr), sa_buf, ntohl(iph->destAddr), da_buf);
 
 
-            return nfq_set_verdict(qh, id, iph->proto == 1 ? NF_DROP : NF_ACCEPT, 0, NULL);
+            return nfq_set_verdict(qh, id, iph->proto == 1 && count % 2 == 0? NF_DROP : NF_ACCEPT, 0, NULL);
         }
     }
     return 0;
