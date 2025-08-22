@@ -16,6 +16,14 @@
 #include "ServerData.h"
 #include "inputreader.h"
 
+#ifdef _USE_NFQ_
+#include <linux/types.h>
+#include <linux/netfilter/nfnetlink_queue.h>
+#include <linux/netfilter.h>
+#include <libnetfilter_queue/libnetfilter_queue.h>
+#endif
+
+
 class ClientSocket : public QObject
 {
     Q_OBJECT
@@ -82,6 +90,7 @@ public:
     IP4Addr mGatewayIP     = 0;
     u_char  mAdaptMac  [6] = { 0 };
     u_char  mGatewayMac[6] = { 0 };
+
     pcap_t* mPcapHandle    = nullptr;
 
     EthernetVlan2 mEthHeader;  // maximal length of Ethernet header
@@ -92,18 +101,25 @@ class RealReceiver : public QThread
     Q_OBJECT
     void    run() override;
 
-    void    pcapHandler(const pcap_pkthdr *header, const u_char *pkt_data);
-
     ClientSocket* findTargetClient(const IPPacket& _packet);
 
     u_int   mPacketCount = 0;
     u_int64 mPacketSize  = 0;
+#ifdef _USE_PCAP_
+    void    pcapHandler(const pcap_pkthdr *header, const u_char *pkt_data);
     pcap_t* mPcapHandle  = nullptr;
-
-public:
-
     friend
         void    realReceiveHandler(u_char *param, const pcap_pkthdr *header, const u_char *pkt_data);
+#endif
+#if _USE_NFQ_
+    int nfqCallback(nfq_q_handle* qh, nfgenmsg* nfmsg, nfq_data* nfa);
+
+    nfq_handle*         mNfqHandle = nullptr;
+    nfq_q_handle*       mQueueHandle = nullptr;
+
+    friend int nfqCallbackAdapter(nfq_q_handle* qh, nfgenmsg* nfmsg,
+                                  nfq_data* nfa, void* data);
+#endif
 };
 
 class RawSockReceiver : public QThread

@@ -160,3 +160,10 @@ function ssh-ak() {
         ssh root@194.87.138.48
 }
 
+function queue-start() {
+    sudo iptables -I INPUT  -j NFQUEUE --queue-num 0
+}
+
+function queue-stop() {
+    sudo iptables -D INPUT 1
+}

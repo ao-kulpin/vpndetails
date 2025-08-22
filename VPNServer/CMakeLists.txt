@@ -54,13 +54,22 @@ add_executable(VPNServer
   ../common/inputreader.cpp
 )
 
+if (WIN32)
+  target_compile_definitions(VPNServer PRIVATE _USE_PCAP_=1)
+endif()
+
+if (UNIX)
+  target_compile_definitions(VPNServer PRIVATE _USE_NFQ_=1)
+endif()
+
+
 set(CMAKE_FIND_STATIC_PREFERENCES "STATIC")
 set(CMAKE_EXE_LINKER_FLAGS "-static-libgcc -static-libstdc++ -Wl,--trace")
 
 if (WIN32)
   target_link_libraries(VPNServer Qt${QT_VERSION_MAJOR}::Core Qt${QT_VERSION_MAJOR}::Network Ws2_32.lib Iphlpapi.lib wpcap.lib)
 elseif (UNIX)
-  target_link_libraries(VPNServer Qt${QT_VERSION_MAJOR}::Core Qt${QT_VERSION_MAJOR}::Network ${PCAP_LIBRARY})
+  target_link_libraries(VPNServer Qt${QT_VERSION_MAJOR}::Core Qt${QT_VERSION_MAJOR}::Network ${PCAP_LIBRARY} netfilter_queue)
 endif()
 
 include(GNUInstallDirs)

@@ -462,6 +462,8 @@ bool RealSender::send(const IPPacket& _packet) {
     }
 }
 
+#ifdef _USE_PCAP_
+
 void realReceiveHandler(u_char *param, const pcap_pkthdr *header, const u_char *pkt_data) {
     reinterpret_cast<RealReceiver*>(param)->pcapHandler(header, pkt_data);
 }
@@ -539,6 +541,119 @@ void RealReceiver::run() {
 
     printf("Real Receiver thread edned (read %d packets, %llu MB)\n", mPacketCount, mPacketSize >> 20);
 }
+
+#endif // _USE_PCAP_
+
+#ifdef _USE_NFQ_
+
+int nfqCallbackAdapter(nfq_q_handle* qh, nfgenmsg* nfmsg, nfq_data* nfa, void* data) {
+
+    return reinterpret_cast<RealReceiver*>(data)->nfqCallback(qh, nfmsg, nfa);
+}
+
+int RealReceiver::nfqCallback(nfq_q_handle* qh, nfgenmsg* nfmsg, nfq_data* nfa) {
+    nfqnl_msg_packet_hdr *nfqPHead = nfq_get_msg_packet_hdr(nfa);
+
+    if (nfqPHead) {
+        u_int32_t nfqPid = ntohl(nfqPHead->packet_id);
+        unsigned char *payload = nullptr;
+        int payloadLen = nfq_get_payload(nfa, &payload);
+
+        if (payloadLen > 0) {
+            const auto* iph = reinterpret_cast<const IPHeader*> (payload);
+
+            if((iph->ver_ihl >> 4) != 4)
+                // take only IPv4 packets
+                return nfq_set_verdict(qh, nfqPid, NF_ACCEPT, 0, NULL);
+
+            ++mPacketCount;
+            const auto totalLen = ntohs(iph->totalLen);
+            mPacketSize += totalLen;
+            if (mPacketCount % 100 == 0)
+                printf("Real Receiver: packets: %u size: %llu MB\n", mPacketCount, mPacketSize >> 20);
+
+            IPPacket packet((const u_char*) iph, totalLen);
+            auto* targetClient = findTargetClient(packet);
+            if (targetClient) {
+                targetClient->takeFromReceiver(packet);
+                return nfq_set_verdict(qh, nfqPid, NF_DROP, 0, NULL);
+            }
+            return nfq_set_verdict(qh, nfqPid, NF_ACCEPT, 0, NULL);
+        }
+    }
+    return 0;
+}
+
+void RealReceiver::run() {
+    mNfqHandle = nfq_open();
+    if (!mNfqHandle) {
+        printf("*** RealReceiver: nfq_open() failed\n");
+        return;
+    }
+
+    Killer handleK ([&]{
+       nfq_close(mNfqHandle);
+        mNfqHandle = nullptr;
+    });
+
+    if (nfq_unbind_pf(mNfqHandle, AF_INET) < 0) {
+        printf("*** RealReceiver: nfq_unbind_pf() failed\n");
+        return;
+    }
+
+    if (nfq_bind_pf(mNfqHandle, AF_INET) < 0) {
+        printf("*** RealReceiver: nfq_bind_pf() failed\n");
+        return;
+    }
+
+    mQueueHandle = nfq_create_queue(mNfqHandle, 0, nfqCallbackAdapter, reinterpret_cast<void*>(this));
+
+    if (!mQueueHandle) {
+        printf("*** RealReceiver: nfq_create_queue() failed\n");
+        return;
+    }
+
+    Killer queueK ([&] {
+        nfq_destroy_queue(mQueueHandle);
+        mQueueHandle = nullptr;
+    });
+
+    if (nfq_set_mode(mQueueHandle, NFQNL_COPY_PACKET, 0xffff) < 0) {
+        printf("*** RealReceiver: nnfq_set_mode() failed\n");
+        return;
+    }
+
+    int fd = nfq_fd(mNfqHandle);
+
+    struct timeval timeout;
+    const int waitTime = 1000;
+    timeout.tv_sec = waitTime / 1000;
+    timeout.tv_usec = waitTime % 1000;
+
+    if (setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0) {
+        printf("*** RealReceiver: setsockopt(SO_RCVTIMEO) failed\n");
+        return;
+    }
+
+    while (!sdata.haveQuit) {
+        char buf[4096] __attribute__ ((aligned));
+        auto rv = recv(fd, buf, sizeof buf, 0);
+        if (rv < 0) {
+            if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                printf("+++ recv() timeout\n");
+                continue;
+            }
+            else {
+                printf("*** RealReceiver: recv() failed\n");
+                return;
+            }
+        }
+        nfq_handle_packet(mNfqHandle, buf, rv);
+    }
+
+    printf("Real Receiver thread edned (read %d packets, %llu MB)\n", mPacketCount, mPacketSize >> 20);
+}
+#endif // _USE_NFQ_
 
 ClientSocket* RealReceiver::findTargetClient(const IPPacket& _packet) {
     auto* iph = _packet.header();
